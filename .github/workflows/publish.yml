@@ -39,9 +39,7 @@
 #
 # ─── TAG CONVENTION ────────────────────────────────────────────────────────────
 #
-# This workflow triggers on tags matching "*.*.*" (e.g. 0.2.0).
-# If you prefer tags with a "v" prefix (e.g. v0.2.0), change the filter to:
-#   tags: ['v*.*.*']
+# This workflow triggers on tags matching "v*.*.*" (e.g. v0.2.0).
 #
 # ─── RELEASE PROCESS ───────────────────────────────────────────────────────────
 #
@@ -71,12 +69,12 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 'lts/*'
+          node-version: 24
           cache: 'npm'
 
       - name: Install dependencies
