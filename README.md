@@ -41,6 +41,7 @@ Use it when you want:
 - a persistent remote schedule that can be paused, resumed, and inspected
 - clear validation errors before a workflow is published
 - webhook delivery into n8n without maintaining your own scheduler stack
+- support for non-English natural-language schedules, depending on your rrule.net account and API configuration
 
 For a deeper comparison of recurrence semantics and cron limitations, see [RRule vs Cron](https://rrule.net/guides/rrule-vs-cron).
 
@@ -48,7 +49,6 @@ It also covers schedules that are awkward or brittle with cron, such as:
 
 - Every second Tuesday at 18:00 except August
 - Every business day at 9:00 and weekends at 10:00
-- Chaque minute de 11h à 12h en semaine, et chaque minute de 12h à 13h le weekend
 
 [rrule.net](https://rrule.net) handles the recurrence model and calls your n8n webhook when an occurrence is due.
 
@@ -96,12 +96,6 @@ Complex example:
 Every second Tuesday at 18:00 except August
 ```
 
-French example:
-
-```text
-Chaque minute de 11h à 12h en semaine, et chaque minute de 12h à 13h le weekend
-```
-
 ## Activation Behavior
 
 When the workflow is published, the node creates or resumes a persistent schedule in [rrule.net](https://rrule.net).
@@ -125,7 +119,7 @@ Each trigger execution emits one item with normalized fields:
   "executed_at": "2026-05-04T09:23:29.173Z",
   "timezone": "Europe/Paris",
   "input_type": "natural",
-  "input_value": "Chaque minute",
+  "input_value": "Every minute",
   "raw_payload": {}
 }
 ```
