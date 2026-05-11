@@ -1,10 +1,12 @@
 {
     "name": "@rrulenet/n8n-nodes-rrulenet",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "n8n community node for rrule.net advanced schedules.",
     "license": "MIT",
     "author": {
-        "name": "rrule.net"
+        "name": "rrule.net",
+        "email": "contact@rrule.net",
+        "url": "https://rrule.net"
     },
     "homepage": "https://github.com/rrulenet/n8n-nodes-rrulenet#readme",
     "keywords": [
