@@ -217,6 +217,14 @@ export class RruleNetScheduleTrigger implements INodeType {
 		],
 		properties: [
 			{
+				displayName: 'Webhook Delivery',
+				name: 'webhookDeliveryNotice',
+				type: 'notice',
+				default: '',
+				description:
+					'This trigger registers the workflow production webhook URL with rrule.net. If rrule.net reports HTTP 404 deliveries, make sure the workflow is active and do not use a test webhook URL.',
+			},
+			{
 				displayName: 'Name',
 				name: 'name',
 				type: 'string',
@@ -233,7 +241,8 @@ export class RruleNetScheduleTrigger implements INodeType {
 				default: '',
 				placeholder: 'Every weekday at 9:00',
 				required: true,
-				description: 'Natural language schedule definition to register in rrule.net',
+				description:
+					'Natural language schedule definition to register in rrule.net. rrule.net validates the schedule before the workflow is activated.',
 			},
 			{
 				displayName: 'Timezone',
@@ -241,6 +250,7 @@ export class RruleNetScheduleTrigger implements INodeType {
 				type: 'string',
 				default: 'Europe/Paris',
 				required: true,
+				description: 'IANA timezone used to evaluate the schedule, for example Europe/Paris',
 			},
 			{
 				displayName: 'On Deactivate',
@@ -257,6 +267,8 @@ export class RruleNetScheduleTrigger implements INodeType {
 					},
 				],
 				default: 'pause',
+				description:
+					'Choose what happens to the remote rrule.net schedule when this n8n workflow is deactivated',
 			},
 		],
 	};

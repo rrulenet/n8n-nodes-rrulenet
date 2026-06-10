@@ -106,6 +106,19 @@ When the workflow is unpublished, the node pauses the remote schedule by default
 
 If the stored remote schedule was deleted manually, the node recreates it on the next publish.
 
+## Webhook Troubleshooting
+
+The node registers the workflow's production n8n webhook URL with [rrule.net](https://rrule.net) when the workflow is published or activated.
+
+If rrule.net reports failed deliveries, check these common causes first:
+
+- **HTTP 404 from n8n**: the workflow is usually not published or active, or the webhook URL is not the production URL.
+- **`webhook-test` URL**: n8n test webhook URLs only work while n8n is explicitly listening for a test event. Use the production webhook URL for persistent schedules.
+- **Local n8n instance**: expose n8n through a public HTTPS tunnel and set `WEBHOOK_URL` to that public URL before activating the workflow.
+- **Stopped tunnel or changed public URL**: reactivate the workflow so the node updates the remote rrule.net schedule with the current webhook URL.
+
+rrule.net automatically pauses clearly broken webhook endpoints. For example, a `404` or `410` response is treated as a terminal endpoint failure, while likely configuration errors such as `400`, `401`, or `403` are paused after repeated failures. Fix the n8n endpoint, then resume or reactivate the schedule.
+
 ## Output
 
 Each trigger execution emits one item with normalized fields:
