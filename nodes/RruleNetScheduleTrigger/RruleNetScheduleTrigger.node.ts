@@ -101,6 +101,27 @@ function throwRruleNetApiError(
 	throw error;
 }
 
+function throwUnexpectedRruleNetError(
+	context: IHookFunctions,
+	error: unknown,
+	fallbackMessage: string,
+): never {
+	const errorObject = getDataObject(error);
+	const statusCode = getErrorStatusCode(error);
+	const message = getString(errorObject?.message) ?? fallbackMessage;
+	const descriptionParts = [
+		getString(errorObject?.description),
+		statusCode ? `rrule.net API returned HTTP ${statusCode}.` : undefined,
+	].filter((part): part is string => Boolean(part));
+	const wrappedError = new NodeOperationError(context.getNode(), message, {
+		description: descriptionParts.join('\n'),
+	});
+
+	(wrappedError as unknown as IDataObject).statusCode = statusCode;
+
+	throw wrappedError;
+}
+
 function persistRemoteScheduleData(
 	context: IHookFunctions,
 	staticData: IDataObject,
@@ -181,7 +202,7 @@ async function deleteRemoteScheduleIfExists(
 		});
 	} catch (error) {
 		if (!isNotFoundError(error)) {
-			throw error;
+			throwUnexpectedRruleNetError(context, error, 'Failed to delete the rrule.net schedule.');
 		}
 	}
 }
@@ -190,7 +211,10 @@ export class RruleNetScheduleTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'rrule.net Schedule Trigger',
 		name: 'rruleNetScheduleTrigger',
-		icon: 'file:rrulenet.svg',
+		icon: {
+			light: 'file:rrulenet.svg',
+			dark: 'file:rrulenet.dark.svg',
+		},
 		group: ['trigger'],
 		version: 1,
 		description: 'Advanced schedule trigger powered by rrule.net',
@@ -323,7 +347,11 @@ export class RruleNetScheduleTrigger implements INodeType {
 						return true;
 					} catch (error) {
 						if (!isNotFoundError(error)) {
-							throw error;
+							throwUnexpectedRruleNetError(
+								this,
+								error,
+								'Failed to update the existing rrule.net schedule.',
+							);
 						}
 
 						clearRemoteScheduleData(staticData);
@@ -368,7 +396,7 @@ export class RruleNetScheduleTrigger implements INodeType {
 					staticData.remoteSchedule = schedule;
 				} catch (error) {
 					if (!isNotFoundError(error)) {
-						throw error;
+						throwUnexpectedRruleNetError(this, error, 'Failed to pause the rrule.net schedule.');
 					}
 
 					clearRemoteScheduleData(staticData);
@@ -383,6 +411,7 @@ export class RruleNetScheduleTrigger implements INodeType {
 		const body = this.getBodyData();
 		const headers = this.getHeaderData();
 		const input = getDataObject(body.input);
+		const target = getDataObject(body.target);
 		const now = new Date().toISOString();
 
 		const output: IDataObject = {
@@ -392,6 +421,10 @@ export class RruleNetScheduleTrigger implements INodeType {
 			scheduled_for: getString(body.scheduled_for) ?? getString(headers['x-rrule-scheduled-for']),
 			executed_at: getString(body.executed_at) ?? now,
 			timezone: getString(body.timezone),
+			target_id: getString(target?.id) ?? getString(headers['x-rrule-target-id']),
+			target_label: getString(target?.label),
+			target_timezone: getString(target?.timezone),
+			target_metadata: getDataObject(target?.metadata) ?? {},
 			input_type: getString(input?.type),
 			input_value: getString(input?.value),
 			raw_payload: body,

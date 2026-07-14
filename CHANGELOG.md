@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4
+
+- Add normalized target fields for rrule.net schedule targets: `target_id`, `target_label`, `target_timezone`, and `target_metadata`.
+- Read `x-rrule-target-id` as a fallback when target-aware webhook payloads provide the target id in headers.
+- Document target-aware schedule routing for downstream n8n workflow actions.
+- Preserve actionable rrule.net API errors when schedule updates, pauses, or deletions fail.
+- Update release tooling to `@n8n/node-cli` 0.38.8 and `release-it` 20.2.1.
+
 ## 0.1.3
 
 - Add webhook troubleshooting guidance for n8n production webhooks, local tunnels, and common HTTP 404 delivery failures.

@@ -41,6 +41,7 @@ Use it when you want:
 - a persistent remote schedule that can be paused, resumed, and inspected
 - clear validation errors before a workflow is published
 - webhook delivery into n8n without maintaining your own scheduler stack
+- target-aware executions for routing by market, region, timezone, or custom metadata
 - support for non-English natural-language schedules, depending on your rrule.net account and API configuration
 
 For a deeper comparison of recurrence semantics and cron limitations, see [RRule vs Cron](https://rrule.net/guides/rrule-vs-cron).
@@ -119,6 +120,23 @@ If rrule.net reports failed deliveries, check these common causes first:
 
 rrule.net automatically pauses clearly broken webhook endpoints. For example, a `404` or `410` response is treated as a terminal endpoint failure, while likely configuration errors such as `400`, `401`, or `403` are paused after repeated failures. Fix the n8n endpoint, then resume or reactivate the schedule.
 
+## Target-Aware Schedules
+
+rrule.net can run one logical schedule across multiple execution targets, such as regions, markets, stores, audiences, or local timezones.
+
+For targeted schedules, the trigger output includes normalized target fields:
+
+- `target_id`
+- `target_label`
+- `target_timezone`
+- `target_metadata`
+
+Use these fields in downstream n8n nodes to route each execution. Untargeted schedules keep the same webhook payload shape and leave target fields empty, except `target_metadata`, which is an empty object.
+
+Learn more in the rrule.net schedule targets guide:
+
+https://rrule.net/guides/schedule-targets
+
 ## Output
 
 Each trigger execution emits one item with normalized fields:
@@ -131,6 +149,13 @@ Each trigger execution emits one item with normalized fields:
   "scheduled_for": "2026-05-04T09:23:00+00:00",
   "executed_at": "2026-05-04T09:23:29.173Z",
   "timezone": "Europe/Paris",
+  "target_id": "paris",
+  "target_label": "Paris audience",
+  "target_timezone": "Europe/Paris",
+  "target_metadata": {
+    "market": "fr",
+    "segmentId": "brevo-fr"
+  },
   "input_type": "natural",
   "input_value": "Every minute",
   "raw_payload": {}
