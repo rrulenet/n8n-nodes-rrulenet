@@ -1,0 +1,372 @@
+{
+  "id": "6c34e8d4-725c-4a74-909f-e2a1c3fe3421",
+  "name": "Send a coffee newsletter at 09:00 local time in every region",
+  "nodes": [
+    {
+      "parameters": {
+        "name": "Morning coffee newsletter",
+        "input": "Send the morning coffee newsletter every day at 9am local time in Paris, New York, Tokyo, and Perth",
+        "timezone": "UTC",
+        "onDeactivate": "pause"
+      },
+      "id": "2abf1afd-e8b8-4b84-93cd-68c4d5ea61e6",
+      "name": "At 09:00 in each target timezone",
+      "type": "@rrulenet/n8n-nodes-rrulenet.rruleNetScheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -920,
+        -80
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "d56ca913-fa14-4d76-a7ba-fbe797861d89",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -920,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sample-schedule-id",
+              "name": "schedule_id",
+              "value": "manual-preview",
+              "type": "string"
+            },
+            {
+              "id": "sample-schedule-name",
+              "name": "schedule_name",
+              "value": "Morning coffee newsletter preview",
+              "type": "string"
+            },
+            {
+              "id": "sample-execution-id",
+              "name": "execution_id",
+              "value": "manual-preview-paris",
+              "type": "string"
+            },
+            {
+              "id": "sample-scheduled-for",
+              "name": "scheduled_for",
+              "value": "={{ $now.setZone('Europe/Paris').toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "sample-timezone",
+              "name": "timezone",
+              "value": "Europe/Paris",
+              "type": "string"
+            },
+            {
+              "id": "sample-target-id",
+              "name": "target_id",
+              "value": "paris",
+              "type": "string"
+            },
+            {
+              "id": "sample-target-label",
+              "name": "target_label",
+              "value": "Paris",
+              "type": "string"
+            },
+            {
+              "id": "sample-target-timezone",
+              "name": "target_timezone",
+              "value": "Europe/Paris",
+              "type": "string"
+            },
+            {
+              "id": "sample-target-metadata",
+              "name": "target_metadata",
+              "value": "={{ { city: 'Paris', timezone: 'Europe/Paris', preview: true } }}",
+              "type": "object"
+            },
+            {
+              "id": "sample-input-type",
+              "name": "input_type",
+              "value": "manual-preview",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d4d03c2b-f38d-4c8d-8f35-d8ef05a0f4da",
+      "name": "Use a sample Paris execution",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -680,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Replace every example.com address before publishing the workflow.\nconst shared = {\n  sender: 'Coffee Newsletter <newsletter@example.com>',\n  feed_url: 'https://news.ycombinator.com/rss',\n  max_articles: 5,\n};\n\nconst audiences = {\n  paris: {\n    timezone: 'Europe/Paris',\n    locale: 'fr-FR',\n    recipient: 'paris-team@example.com',\n    greeting: 'Bonjour Paris',\n    subject_prefix: 'Votre pause café',\n    intro: 'Voici les articles à découvrir avec votre café ce matin.',\n    footer: 'Envoyé à 09:00 heure locale grâce à rrule.net et n8n.',\n  },\n  new_york: {\n    timezone: 'America/New_York',\n    locale: 'en-US',\n    recipient: 'new-york-team@example.com',\n    greeting: 'Good morning New York',\n    subject_prefix: 'Your morning coffee',\n    intro: 'Here are a few stories to explore with your coffee this morning.',\n    footer: 'Delivered at 09:00 local time with rrule.net and n8n.',\n  },\n  tokyo: {\n    timezone: 'Asia/Tokyo',\n    locale: 'ja-JP',\n    recipient: 'tokyo-team@example.com',\n    greeting: 'おはようございます、東京',\n    subject_prefix: '朝のコーヒーニュース',\n    intro: '今朝のコーヒーと一緒に読みたい記事をお届けします。',\n    footer: 'rrule.net と n8n により現地時間09:00に配信されました。',\n  },\n  perth: {\n    timezone: 'Australia/Perth',\n    locale: 'en-AU',\n    recipient: 'perth-team@example.com',\n    greeting: 'Good morning Perth',\n    subject_prefix: 'Your morning coffee',\n    intro: 'Here are a few stories to explore with your coffee this morning.',\n    footer: 'Delivered at 09:00 local time with rrule.net and n8n.',\n  },\n};\n\nreturn $input.all().map((item, itemIndex) => {\n  const targetId = String(item.json.target_id ?? '');\n  const audience = audiences[targetId];\n\n  if (!audience) {\n    throw new Error(`No audience configuration exists for target_id ${targetId}. Update the audiences map before publishing.`);\n  }\n\n  if (item.json.target_timezone && item.json.target_timezone !== audience.timezone) {\n    throw new Error(`Unexpected timezone ${item.json.target_timezone} for target_id ${targetId}. Expected ${audience.timezone}.`);\n  }\n\n  return {\n    json: {\n      ...item.json,\n      ...shared,\n      ...audience,\n    },\n    pairedItem: { item: itemIndex },\n  };\n});"
+      },
+      "id": "e9b540fb-e2aa-47a8-b87e-0cde5259dbb8",
+      "name": "Configure regional audiences",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feed_url }}",
+        "options": {}
+      },
+      "id": "18d2e9cc-ca89-4ecf-990a-2a1b08b093b8",
+      "name": "Read the morning RSS feed",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        -180,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('Configure regional audiences').first().json;\n\nconst escapeHtml = (value) => String(value ?? '')\n  .replaceAll('&', '&amp;')\n  .replaceAll('<', '&lt;')\n  .replaceAll('>', '&gt;')\n  .replaceAll('\\\"', '&quot;')\n  .replaceAll(\"'\", '&#039;');\n\nconst safeUrl = (value) => {\n  const url = String(value ?? '').trim();\n  return /^https?:\\/\\/[^\\s<>\"']+$/i.test(url) ? url : '#';\n};\n\nconst articleLimit = Math.max(1, Math.min(10, Number(config.max_articles) || 5));\nconst articles = $input.all()\n  .map((item) => item.json)\n  .filter((article) => typeof article.title === 'string' && typeof article.link === 'string')\n  .slice(0, articleLimit);\n\nif (articles.length === 0) {\n  throw new Error('The RSS feed returned no usable articles. Check feed_url before publishing.');\n}\n\nconst scheduledDate = new Date(String(config.scheduled_for || new Date().toISOString()));\nconst displayDate = new Intl.DateTimeFormat(String(config.locale), {\n  dateStyle: 'full',\n  timeZone: String(config.timezone),\n}).format(scheduledDate);\n\nconst articleHtml = articles.map((article) => {\n  const title = escapeHtml(article.title);\n  const link = escapeHtml(safeUrl(article.link));\n  const rawSnippet = String(article.contentSnippet ?? '').trim();\n  const snippet = /^Article URL:/i.test(rawSnippet) ? '' : escapeHtml(rawSnippet.slice(0, 240));\n  const description = snippet ? `<p style=\\\"margin:8px 0 0;color:#5f5149;font-size:14px;font-weight:400;line-height:1.5;\\\">${snippet}</p>` : '';\n  return `<li style=\\\"margin:0 0 22px;padding-left:4px;color:#6f3f21;font-size:17px;font-weight:700;line-height:1.4;\\\"><a href=\\\"${link}\\\" style=\\\"color:#6f3f21;font-size:17px;font-weight:700;line-height:1.4;text-decoration:none;\\\">${title}</a>${description}</li>`;\n}).join('');\n\nconst html = `<!doctype html>\n<html lang=\\\"${escapeHtml(String(config.locale).split('-')[0] || 'en')}\\\">\n  <head>\n    <meta charset=\\\"utf-8\\\">\n    <meta name=\\\"viewport\\\" content=\\\"width=device-width,initial-scale=1\\\">\n  </head>\n  <body style=\\\"margin:0;background:#f7f1eb;font-family:Arial,sans-serif;color:#2d241f;\\\">\n    <div style=\\\"display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;\\\">${escapeHtml(config.intro)}</div>\n    <table role=\\\"presentation\\\" width=\\\"100%\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\" style=\\\"background:#f7f1eb;padding:24px 12px;\\\">\n      <tr><td align=\\\"center\\\">\n        <table role=\\\"presentation\\\" width=\\\"100%\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\" style=\\\"max-width:640px;background:#ffffff;border-radius:14px;overflow:hidden;\\\">\n          <tr><td style=\\\"background:#5b3825;padding:28px 32px;color:#ffffff;\\\">\n            <div style=\\\"font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.8;\\\">${escapeHtml(displayDate)}</div>\n            <h1 style=\\\"margin:10px 0 0;font-size:28px;\\\">☕ ${escapeHtml(config.greeting)}</h1>\n          </td></tr>\n          <tr><td style=\\\"padding:30px 32px;\\\">\n            <p style=\\\"margin:0 0 24px;font-size:16px;line-height:1.6;\\\">${escapeHtml(config.intro)}</p>\n            <ol style=\\\"margin:0;padding-left:24px;\\\">${articleHtml}</ol>\n          </td></tr>\n          <tr><td style=\\\"padding:20px 32px;background:#efe3d7;color:#6b5a50;font-size:12px;line-height:1.5;\\\">\n            ${escapeHtml(config.footer)}<br>Target: ${escapeHtml(config.target_id)} · ${escapeHtml(config.target_timezone)}\n          </td></tr>\n        </table>\n      </td></tr>\n    </table>\n  </body>\n</html>`;\n\nreturn [{\n  json: {\n    execution_id: config.execution_id,\n    scheduled_for: config.scheduled_for,\n    target_id: config.target_id,\n    target_timezone: config.target_timezone,\n    recipient: config.recipient,\n    sender: config.sender,\n    subject: `${config.subject_prefix} — ${displayDate}`,\n    html,\n    article_count: articles.length,\n  },\n}];"
+      },
+      "id": "636484f7-bd90-4615-b6b3-f54e54d64227",
+      "name": "Build localized newsletter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "sendHTML": true,
+        "subject": "={{ $json.subject }}",
+        "htmlContent": "={{ $json.html }}",
+        "sender": "={{ $json.sender }}",
+        "receipients": "={{ $json.recipient }}",
+        "additionalFields": {
+          "emailTags": {
+            "tags": {
+              "tag": "rrulenet,coffee-newsletter"
+            }
+          }
+        }
+      },
+      "id": "33bf7781-5b92-4105-aaed-78de5b3863e0",
+      "name": "Send with Brevo",
+      "type": "n8n-nodes-base.sendInBlue",
+      "typeVersion": 1,
+      "position": [
+        340,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "result-message-id",
+              "name": "message_id",
+              "value": "={{ $json.messageId }}",
+              "type": "string"
+            },
+            {
+              "id": "result-execution-id",
+              "name": "execution_id",
+              "value": "={{ $('Build localized newsletter').first().json.execution_id }}",
+              "type": "string"
+            },
+            {
+              "id": "result-scheduled-for",
+              "name": "scheduled_for",
+              "value": "={{ $('Build localized newsletter').first().json.scheduled_for }}",
+              "type": "string"
+            },
+            {
+              "id": "result-target-id",
+              "name": "target_id",
+              "value": "={{ $('Build localized newsletter').first().json.target_id }}",
+              "type": "string"
+            },
+            {
+              "id": "result-target-timezone",
+              "name": "target_timezone",
+              "value": "={{ $('Build localized newsletter').first().json.target_timezone }}",
+              "type": "string"
+            },
+            {
+              "id": "result-recipient",
+              "name": "recipient",
+              "value": "={{ $('Build localized newsletter').first().json.recipient }}",
+              "type": "string"
+            },
+            {
+              "id": "result-article-count",
+              "name": "article_count",
+              "value": "={{ $('Build localized newsletter').first().json.article_count }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "19ad56f4-4a2f-411e-90e5-96703e00234c",
+      "name": "Return delivery context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        600,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup before publishing\n\n1. Install `@rrulenet/n8n-nodes-rrulenet`.\n2. Add rrule.net and Brevo credentials.\n3. Edit the sender and four recipients in **Configure regional audiences**.\n4. Run the manual Paris preview.\n5. Publish the workflow only after the preview succeeds.",
+        "height": 220,
+        "width": 420
+      },
+      "id": "df9679c7-a3a3-49b7-a95f-7fc29dada85e",
+      "name": "Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -940,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Why rrule.net?\n\nThis is one logical schedule with four targets. Paris and New York keep 09:00 wall-clock time through DST changes; Tokyo and Perth remain on their non-DST offsets. Route each execution with `target_id` and verify `target_timezone`.",
+        "height": 180,
+        "width": 420
+      },
+      "id": "22724e22-31dd-4ea6-9898-34a094b02574",
+      "name": "Local-time scheduling",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Replaceable content\n\nThe RSS feed and five-article limit are configured in **Configure regional audiences**. The HTML builder escapes feed text and only links to HTTP(S) URLs. Brevo sends one transactional digest per target; adapt consent and unsubscribe handling before using it as a public marketing newsletter.",
+        "height": 200,
+        "width": 500
+      },
+      "id": "8c359270-7f49-4ff9-9c35-352fa89b952e",
+      "name": "Content and email",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -420
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "At 09:00 in each target timezone": {
+      "main": [
+        [
+          {
+            "node": "Configure regional audiences",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Use a sample Paris execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use a sample Paris execution": {
+      "main": [
+        [
+          {
+            "node": "Configure regional audiences",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure regional audiences": {
+      "main": [
+        [
+          {
+            "node": "Read the morning RSS feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the morning RSS feed": {
+      "main": [
+        [
+          {
+            "node": "Build localized newsletter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build localized newsletter": {
+      "main": [
+        [
+          {
+            "node": "Send with Brevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send with Brevo": {
+      "main": [
+        [
+          {
+            "node": "Return delivery context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a9d67525-22b0-46e6-bd3f-41e031ebeb14",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

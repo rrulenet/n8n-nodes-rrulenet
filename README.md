@@ -137,6 +137,15 @@ Learn more in the rrule.net schedule targets guide:
 
 https://rrule.net/guides/schedule-targets
 
+## Workflow Templates
+
+The repository includes an importable target-aware example:
+
+- [Send a coffee newsletter at 09:00 local time in every region](https://github.com/rrulenet/n8n-nodes-rrulenet/tree/main/templates/coffee-newsletter)
+
+It combines Paris, New York, Tokyo, and Perth in one logical schedule, then
+routes each execution to a localized RSS digest sent through Brevo.
+
 ## Output
 
 Each trigger execution emits one item with normalized fields:
