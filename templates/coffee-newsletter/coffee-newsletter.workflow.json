@@ -236,47 +236,81 @@
     },
     {
       "parameters": {
-        "content": "## Setup before publishing\n\n1. Install `@rrulenet/n8n-nodes-rrulenet`.\n2. Add rrule.net and Brevo credentials.\n3. Edit the sender and four recipients in **Configure regional audiences**.\n4. Run the manual Paris preview.\n5. Publish the workflow only after the preview succeeds.",
-        "height": 220,
-        "width": 420
+        "content": "## Coffee newsletters at 09:00 local time\n\nThis workflow uses one target-aware rrule.net schedule to send a localized morning digest in Paris, New York, Tokyo, and Perth.\n\n### Before activation\n\n1. Install `@rrulenet/n8n-nodes-rrulenet` version 0.1.4 or later.\n2. Add rrule.net and Brevo credentials.\n3. In **Configure regional audiences**, replace the example sender and recipients.\n4. Optionally change the RSS feed and article limit in the same node.\n5. Run **When clicking 'Execute workflow'** to test the Paris preview.\n6. Check the email and links, then activate the workflow.\n\n### Customize\n\nAdd targets and matching audience entries, replace the RSS source, adapt the localized copy and branding, or swap Brevo for another email provider.",
+        "width": 480,
+        "height": 880
       },
-      "id": "df9679c7-a3a3-49b7-a95f-7fc29dada85e",
-      "name": "Setup",
+      "id": "34284232-2ab6-457d-a5b9-38d5adc34be0",
+      "name": "Workflow guide",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -940,
-        -420
+        -1560,
+        -400
       ]
     },
     {
       "parameters": {
-        "content": "## Why rrule.net?\n\nThis is one logical schedule with four targets. Paris and New York keep 09:00 wall-clock time through DST changes; Tokyo and Perth remain on their non-DST offsets. Route each execution with `target_id` and verify `target_timezone`.",
-        "height": 180,
-        "width": 420
+        "content": "## One schedule, four local times\n\n**At 09:00 in each target timezone** creates one logical rrule.net schedule with four targets. Paris and New York stay at 09:00 through DST changes; Tokyo and Perth keep their non-DST offsets. Each execution carries `target_id` and `target_timezone` for deterministic routing.",
+        "width": 320,
+        "height": 440,
+        "color": 7
       },
-      "id": "22724e22-31dd-4ea6-9898-34a094b02574",
-      "name": "Local-time scheduling",
+      "id": "3ade7f99-6a40-4a0c-8868-506081861f66",
+      "name": "Target-aware schedule",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Safe manual preview\n\n**When clicking 'Execute workflow'** injects a sample Paris execution without changing the remote rrule.net schedule. After you configure credentials and real addresses, the preview sends a real email through Brevo.",
+        "width": 560,
+        "height": 440,
+        "color": 7
+      },
+      "id": "d902b6ee-9e0b-456e-bcda-a2a888e3668e",
+      "name": "Manual preview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Select, fetch, and localize\n\n**Configure regional audiences** matches `target_id` to its locale, timezone, sender, recipient, and localized copy. **Read the morning RSS feed** loads the configured source. **Build localized newsletter** keeps usable articles, escapes feed text, accepts only HTTP(S) links, and creates the responsive HTML email.",
+        "width": 720,
+        "height": 440,
+        "color": 7
+      },
+      "id": "34ffd0a9-a614-4d0d-92d7-c4485895a8d1",
+      "name": "Localized content",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         -480,
-        -420
+        -400
       ]
     },
     {
       "parameters": {
-        "content": "## Replaceable content\n\nThe RSS feed and five-article limit are configured in **Configure regional audiences**. The HTML builder escapes feed text and only links to HTTP(S) URLs. Brevo sends one transactional digest per target; adapt consent and unsubscribe handling before using it as a public marketing newsletter.",
-        "height": 200,
-        "width": 500
+        "content": "## Send and return context\n\n**Send with Brevo** sends one digest for the current target. **Return delivery context** exposes the message ID, execution ID, scheduled time, target, recipient, and article count. Add the required consent, unsubscribe, and list-management behavior before public marketing use.",
+        "width": 448,
+        "height": 440,
+        "color": 7
       },
-      "id": "8c359270-7f49-4ff9-9c35-352fa89b952e",
-      "name": "Content and email",
+      "id": "e90b268d-2f13-4fea-bf3b-4243bb55c334",
+      "name": "Delivery context",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        0,
-        -420
+        288,
+        -400
       ]
     }
   ],
