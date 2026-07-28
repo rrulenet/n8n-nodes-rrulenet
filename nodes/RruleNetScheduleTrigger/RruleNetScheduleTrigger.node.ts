@@ -8,6 +8,16 @@ import type {
 	IWebhookResponseData,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import { eventWindowProperties } from './eventWindowProperties';
+import {
+	buildCreateScheduleBody,
+	buildScheduleDefinition,
+	getExpectedScheduleName,
+	isStoredDefinitionEqual,
+	ScheduleDefinitionValidationError,
+	type ScheduleDefinition,
+	type ScheduleDefinitionMode,
+} from './scheduleDefinition';
 
 function getString(value: unknown): string | undefined {
 	return typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -70,6 +80,8 @@ function clearRemoteScheduleData(staticData: IDataObject): void {
 	delete staticData.timezone;
 	delete staticData.webhookUrl;
 	delete staticData.remoteSchedule;
+	delete staticData.scheduleDefinitionMode;
+	delete staticData.scheduleDefinitionFingerprint;
 }
 
 function throwRruleNetApiError(
@@ -126,9 +138,8 @@ function persistRemoteScheduleData(
 	context: IHookFunctions,
 	staticData: IDataObject,
 	schedule: IDataObject,
-	input: string,
-	name: string,
-	timezone: string,
+	definition: ScheduleDefinition,
+	scheduleName: string,
 	webhookUrl: string,
 ): void {
 	const scheduleId = getString(schedule.id);
@@ -140,10 +151,16 @@ function persistRemoteScheduleData(
 	}
 
 	staticData.scheduleId = scheduleId;
-	staticData.scheduleName = name || input;
+	staticData.scheduleName = scheduleName;
 	staticData.webhookUrl = webhookUrl;
-	staticData.scheduleInput = input;
-	staticData.timezone = timezone;
+	if (definition.input) {
+		staticData.scheduleInput = definition.input;
+	} else {
+		delete staticData.scheduleInput;
+	}
+	staticData.timezone = definition.timezone;
+	staticData.scheduleDefinitionMode = definition.mode;
+	staticData.scheduleDefinitionFingerprint = definition.fingerprint;
 	staticData.remoteSchedule = schedule;
 }
 
@@ -172,23 +189,67 @@ async function rruleNetRequest(
 
 async function createRemoteSchedule(
 	context: IHookFunctions,
-	input: string,
+	definition: ScheduleDefinition,
 	name: string,
-	timezone: string,
 	webhookUrl: string,
 ): Promise<IDataObject> {
 	return await rruleNetRequest(context, {
 		method: 'POST',
 		url: '/v1/schedules',
-		body: {
-			input,
-			...(name ? { name } : {}),
-			timezone,
-			webhook: {
-				url: webhookUrl,
-			},
-		},
+		body: buildCreateScheduleBody(definition, name, webhookUrl),
 	});
+}
+
+function getScheduleDefinition(context: IHookFunctions): ScheduleDefinition {
+	const mode = context.getNodeParameter('scheduleMode', 'natural') as ScheduleDefinitionMode;
+	const timezone = context.getNodeParameter('timezone', 'Europe/Paris') as string;
+
+	try {
+		if (mode === 'eventWindow') {
+			return buildScheduleDefinition({
+				mode,
+				input: context.getNodeParameter('inputDescription', '') as string,
+				timezone,
+				eventWindow: {
+					eventId: context.getNodeParameter('eventId', ''),
+					eventLabel: context.getNodeParameter('eventLabel', ''),
+					windowStart: context.getNodeParameter('windowStart', ''),
+					windowEnd: context.getNodeParameter('windowEnd', ''),
+					audiences: context.getNodeParameter('audiences', {}),
+					customerReminders: context.getNodeParameter('customerReminders', {}),
+					operationalWarnings: context.getNodeParameter('operationalWarnings', {}),
+					includeStartTarget: context.getNodeParameter('includeStartTarget', true),
+					includeProgressTarget: context.getNodeParameter('includeProgressTarget', true),
+					progressIntervalMinutes: context.getNodeParameter(
+						'progressIntervalMinutes',
+						10,
+					),
+					includeEndTarget: context.getNodeParameter('includeEndTarget', true),
+				},
+			});
+		}
+
+		if (mode === 'targets') {
+			return buildScheduleDefinition({
+				mode,
+				input: context.getNodeParameter('inputDescription', '') as string,
+				timezone,
+				targetsJson: context.getNodeParameter('targetsJson', '[]'),
+			});
+		}
+
+		return buildScheduleDefinition({
+			mode: 'natural',
+			input: context.getNodeParameter('input', '') as string,
+			timezone,
+		});
+	} catch (error) {
+		const message =
+			error instanceof ScheduleDefinitionValidationError
+				? error.message
+				: 'Unable to read the rrule.net schedule definition.';
+		throw new NodeOperationError(context.getNode(), message);
+	}
 }
 
 async function deleteRemoteScheduleIfExists(
@@ -218,7 +279,8 @@ export class RruleNetScheduleTrigger implements INodeType {
 		group: ['trigger'],
 		version: 1,
 		description: 'Advanced schedule trigger powered by rrule.net',
-		subtitle: '={{$parameter["name"] || $parameter["input"]}}',
+		subtitle:
+			'={{$parameter["name"] || $parameter["input"] || $parameter["eventLabel"] || $parameter["inputDescription"]}}',
 		defaults: {
 			name: 'rrule.net Schedule Trigger',
 		},
@@ -246,7 +308,34 @@ export class RruleNetScheduleTrigger implements INodeType {
 				type: 'notice',
 				default: '',
 				description:
-					'This trigger registers the workflow production webhook URL with rrule.net. If rrule.net reports HTTP 404 deliveries, make sure the workflow is active and do not use a test webhook URL.',
+					'This trigger registers the workflow production webhook URL with rrule.net. If rrule.net reports HTTP 404 deliveries, make sure the workflow is published and do not use a test webhook URL.',
+			},
+			{
+				displayName: 'Schedule Mode',
+				name: 'scheduleMode',
+				type: 'options',
+				// eslint-disable-next-line @n8n/community-nodes/options-sorted-alphabetically -- Order modes by increasing configuration complexity.
+				options: [
+					{
+						name: 'Natural Language',
+						value: 'natural',
+						description: 'Describe the schedule in text and let rrule.net validate it',
+					},
+					{
+						name: 'Event Window',
+						value: 'eventWindow',
+						description:
+							'Generate deterministic targets from one event window, audiences, reminders, warnings, and lifecycle phases',
+					},
+					{
+						name: 'Canonical Targets JSON (Advanced)',
+						value: 'targets',
+						description:
+							'Import target definitions already generated by a template, API client, or rrule.net tool',
+					},
+				],
+				default: 'natural',
+				description: 'Choose how the remote rrule.net schedule is defined',
 			},
 			{
 				displayName: 'Name',
@@ -266,7 +355,29 @@ export class RruleNetScheduleTrigger implements INodeType {
 				placeholder: 'Every weekday at 9:00',
 				required: true,
 				description:
-					'Natural language schedule definition to register in rrule.net. rrule.net validates the schedule before the workflow is activated.',
+					'Natural language schedule definition to register in rrule.net. rrule.net validates the schedule before the workflow is published.',
+				displayOptions: {
+					show: {
+						scheduleMode: ['natural'],
+					},
+				},
+			},
+			{
+				displayName: 'Schedule Description',
+				name: 'inputDescription',
+				type: 'string',
+				typeOptions: {
+					rows: 2,
+				},
+				default: '',
+				placeholder: 'Coordinate the September maintenance window',
+				description:
+					'Optional original human-readable description stored with an explicit targeted schedule',
+				displayOptions: {
+					show: {
+						scheduleMode: ['eventWindow', 'targets'],
+					},
+				},
 			},
 			{
 				displayName: 'Timezone',
@@ -274,10 +385,42 @@ export class RruleNetScheduleTrigger implements INodeType {
 				type: 'string',
 				default: 'Europe/Paris',
 				required: true,
-				description: 'IANA timezone used to evaluate the schedule, for example Europe/Paris',
+				description:
+					'IANA timezone for the parent schedule. In explicit-target mode, each target timezone controls its own execution.',
+			},
+			...eventWindowProperties,
+			{
+				displayName:
+					'Advanced import path: each target must have a unique ID, an IANA timezone, and exactly one canonical recurrence or event_schedule object. Most users should choose Natural Language or Event Window.',
+				name: 'explicitTargetsNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						scheduleMode: ['targets'],
+					},
+				},
 			},
 			{
-				displayName: 'On Deactivate',
+				displayName: 'Targets JSON',
+				name: 'targetsJson',
+				type: 'json',
+				typeOptions: {
+					rows: 16,
+				},
+				default: '[]',
+				required: true,
+				validateType: 'array',
+				description:
+					'Array of explicit rrule.net targets. Every target may include label and metadata, plus exactly one recurrence or event_schedule source.',
+				displayOptions: {
+					show: {
+						scheduleMode: ['targets'],
+					},
+				},
+			},
+			{
+				displayName: 'On Unpublish',
 				name: 'onDeactivate',
 				type: 'options',
 				options: [
@@ -292,7 +435,7 @@ export class RruleNetScheduleTrigger implements INodeType {
 				],
 				default: 'pause',
 				description:
-					'Choose what happens to the remote rrule.net schedule when this n8n workflow is deactivated',
+					'Choose what happens to the remote rrule.net schedule when this n8n workflow is unpublished',
 			},
 		],
 	};
@@ -314,15 +457,10 @@ export class RruleNetScheduleTrigger implements INodeType {
 
 				const staticData = this.getWorkflowStaticData('node');
 				const scheduleId = getString(staticData.scheduleId);
-				const timezone = this.getNodeParameter('timezone', 'Europe/Paris') as string;
-				const input = this.getNodeParameter('input', '') as string;
 				const name = this.getNodeParameter('name', '') as string;
-				const storedInput = getString(staticData.scheduleInput);
-				const storedName = getString(staticData.scheduleName);
-				const storedTimezone = getString(staticData.timezone);
-				const expectedName = name || input;
-				const sameRemoteSchedule =
-					storedInput === input && storedName === expectedName && storedTimezone === timezone;
+				const definition = getScheduleDefinition(this);
+				const expectedName = getExpectedScheduleName(name, definition);
+				const sameRemoteSchedule = isStoredDefinitionEqual(staticData, definition);
 
 				if (scheduleId && sameRemoteSchedule) {
 					try {
@@ -330,6 +468,7 @@ export class RruleNetScheduleTrigger implements INodeType {
 							method: 'PATCH',
 							url: `/v1/schedules/${scheduleId}`,
 							body: {
+								name: name.trim() || null,
 								webhook: {
 									url: webhookUrl,
 								},
@@ -341,8 +480,14 @@ export class RruleNetScheduleTrigger implements INodeType {
 							url: `/v1/schedules/${scheduleId}/resume`,
 						});
 
-						staticData.remoteSchedule = schedule;
-						staticData.webhookUrl = webhookUrl;
+						persistRemoteScheduleData(
+							this,
+							staticData,
+							schedule,
+							definition,
+							expectedName,
+							webhookUrl,
+						);
 
 						return true;
 					} catch (error) {
@@ -360,11 +505,19 @@ export class RruleNetScheduleTrigger implements INodeType {
 
 				if (scheduleId) {
 					await deleteRemoteScheduleIfExists(this, scheduleId);
+					clearRemoteScheduleData(staticData);
 				}
 
-				const schedule = await createRemoteSchedule(this, input, name, timezone, webhookUrl);
+				const schedule = await createRemoteSchedule(this, definition, name, webhookUrl);
 
-				persistRemoteScheduleData(this, staticData, schedule, input, name, timezone, webhookUrl);
+				persistRemoteScheduleData(
+					this,
+					staticData,
+					schedule,
+					definition,
+					expectedName,
+					webhookUrl,
+				);
 
 				return true;
 			},

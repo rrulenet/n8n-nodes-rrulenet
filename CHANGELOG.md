@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- Add a structured Event Window mode that dynamically generates regional
+  reminders, operational warnings, and enabled lifecycle targets from editable
+  business parameters.
+- Add an advanced Canonical Targets JSON import mode with canonical
+  `recurrence` or `event_schedule` sources.
+- Fingerprint schedule definitions so unchanged targets resume without remote
+  recreation.
+- Replace changed immutable target definitions without leaving duplicate
+  schedules, while preserving existing natural-language workflows.
+- Align the visible workflow lifecycle terminology with n8n's Publish and
+  Unpublish actions while preserving existing workflow parameters.
+- Add schedule-definition and lifecycle regression tests to CI.
+
 ## 0.1.4
 
 - Add normalized target fields for rrule.net schedule targets: `target_id`, `target_label`, `target_timezone`, and `target_metadata`.
