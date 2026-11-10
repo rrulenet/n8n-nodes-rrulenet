@@ -278,13 +278,13 @@ export class RruleNetScheduleTrigger implements INodeType {
 		},
 		group: ['trigger'],
 		version: 1,
-		description: 'Advanced schedule trigger powered by rrule.net',
+		description:
+			'Trigger workflows with timezone-aware cron, RRULE, or natural-language schedules, including maintenance windows and event-relative reminders and checks',
 		subtitle:
 			'={{$parameter["name"] || $parameter["input"] || $parameter["eventLabel"] || $parameter["inputDescription"]}}',
 		defaults: {
 			name: 'rrule.net Schedule Trigger',
 		},
-		usableAsTool: true,
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [
@@ -314,7 +314,6 @@ export class RruleNetScheduleTrigger implements INodeType {
 				displayName: 'Schedule Mode',
 				name: 'scheduleMode',
 				type: 'options',
-				// eslint-disable-next-line @n8n/community-nodes/options-sorted-alphabetically -- Order modes by increasing configuration complexity.
 				options: [
 					{
 						name: 'Natural Language',

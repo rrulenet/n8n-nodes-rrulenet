@@ -1,7 +1,12 @@
 # Send a coffee newsletter at 09:00 local time in every region
 
-Status: runtime validated; final presentation and submission pending
-Last validated: 2026-07-16
+Status: published in the n8n template library
+
+Publication verified: 2026-10-29
+
+Last full email/webhook validation: 2026-07-16
+
+[Open the published template](https://n8n.io/workflows/17507-send-localized-9am-rss-coffee-newsletters-with-rrulenet-and-brevo/).
 
 Import
 [`coffee-newsletter.workflow.json`](./coffee-newsletter.workflow.json) into n8n
@@ -25,6 +30,10 @@ rrule.net Schedule Trigger
 - `@rrulenet/n8n-nodes-rrulenet` version `0.1.4` or later;
 - an rrule.net API key;
 - a Brevo API credential and a verified Brevo sender.
+
+The hosted API and scheduler use the `@rrulenet` 0.2.2 libraries. The workflow
+continues to use Natural Language mode and needs no Event Window or temporal
+JSON migration. The node's version is independent of the library versions.
 
 ## Setup
 
@@ -92,7 +101,7 @@ Tunnel then created and routed all four target executions successfully for
 Paris, New York, Tokyo, and Perth, with four localized Brevo deliveries. The
 workflow was unpublished after the bounded test.
 
-## Submission checklist
+## Checklist for future template updates
 
 - Replace or deliberately retain the example RSS source.
 - Test the manual Paris preview.

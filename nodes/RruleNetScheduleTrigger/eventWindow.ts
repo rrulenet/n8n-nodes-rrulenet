@@ -48,6 +48,7 @@ interface OperationalWarning {
 const EVENT_ID_PATTERN = /^[a-zA-Z0-9._-]+$/;
 const TARGET_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const LOCAL_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const INSTANT_PATTERN = /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.(\d+))?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/i;
 
 export class EventWindowValidationError extends Error {}
 
@@ -78,8 +79,22 @@ function isValidTimezone(value: string): boolean {
 
 function parseInstant(value: unknown, field: string): string {
 	const input = requiredString(value, field);
+	const match = INSTANT_PATTERN.exec(input);
+	if (!match) {
+		throw new EventWindowValidationError(
+			`${field} must be an ISO date and time with Z or an explicit UTC offset.`,
+		);
+	}
+	if (match[2] && /[1-9]/.test(match[2])) {
+		throw new EventWindowValidationError(`${field} must use whole-second precision.`);
+	}
+	const date = Date.parse(`${match[1]}T00:00:00Z`);
 	const timestamp = Date.parse(input);
-	if (!Number.isFinite(timestamp)) {
+	if (
+		!Number.isFinite(date) ||
+		!Number.isFinite(timestamp) ||
+		new Date(date).toISOString().slice(0, 10) !== match[1]
+	) {
 		throw new EventWindowValidationError(`${field} must be a valid date and time.`);
 	}
 
@@ -276,6 +291,7 @@ function utcZonedDateTime(instant: string): string {
 
 function progressRecurrence(start: string, interval: number): Record<string, unknown> {
 	return {
+		temporalVersion: 2,
 		kind: 'input',
 		start: utcZonedDateTime(start),
 		tzid: 'UTC',

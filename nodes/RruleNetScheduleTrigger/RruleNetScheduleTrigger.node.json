@@ -3,6 +3,17 @@
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": ["Productivity", "Development"],
+	"alias": [
+		"Timezone-Aware Scheduler",
+		"DST-Aware Schedule",
+		"Daylight-Saving Scheduler",
+		"Multi-Timezone Schedule",
+		"Multi-Region",
+		"Recurring Workflow",
+		"Cron Alternative",
+		"Maintenance Window",
+		"Event Window"
+	],
 	"resources": {
 		"credentialDocumentation": [
 			{

@@ -16,6 +16,7 @@ const maintenanceEvent = {
 };
 
 const progressRecurrence = {
+	temporalVersion: 2,
 	kind: 'input',
 	start: '2026-09-15T02:00:00+00:00[UTC]',
 	tzid: 'UTC',

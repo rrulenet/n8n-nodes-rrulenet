@@ -43,12 +43,9 @@
 #
 # ─── RELEASE PROCESS ───────────────────────────────────────────────────────────
 #
-# Run the following command locally to start an interactive release:
-#
-#   npm run release
-#
-# This will lint, build, prompt for a version bump, update the changelog,
-# commit, tag, and push — which triggers this workflow to publish to npm.
+# For an unversioned candidate, npm run release prompts for a version bump
+# before committing, tagging, and pushing. For a prepared version, push the
+# versioned commit, wait for CI, and then push the matching tag.
 
 name: Publish
 
@@ -74,7 +71,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: '24.22.1'
           cache: 'npm'
 
       - name: Install dependencies

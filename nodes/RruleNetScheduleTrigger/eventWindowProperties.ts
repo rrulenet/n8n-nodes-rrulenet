@@ -39,7 +39,7 @@ export const eventWindowProperties: INodeProperties[] = [
 		type: 'dateTime',
 		default: '',
 		required: true,
-		description: 'Exact planned start instant, including its timezone or UTC offset',
+		description: 'Exact planned start instant with Z or a UTC offset, using whole-second precision',
 		displayOptions: eventWindowDisplay,
 	},
 	{
@@ -49,7 +49,7 @@ export const eventWindowProperties: INodeProperties[] = [
 		default: '',
 		required: true,
 		description:
-			'Exact planned end instant. Downstream health checks decide whether recovery is operationally complete.',
+			'Exact planned end instant with Z or a UTC offset, using whole-second precision. Downstream health checks decide whether recovery is operationally complete.',
 		displayOptions: eventWindowDisplay,
 	},
 	{

@@ -30,6 +30,12 @@
 
 The first node in this package is **rrule.net Schedule Trigger**. It starts an n8n workflow from a hosted [rrule.net](https://rrule.net) schedule, so schedule creation, timezone handling, recurrence evaluation, and webhook delivery live in a dedicated scheduling layer.
 
+Event Window and Canonical Targets JSON require version `0.2.0` or later.
+The Coffee Newsletter template supports version `0.1.4` and later.
+
+The node is versioned independently from the `@rrulenet` libraries. It calls the
+hosted API rather than running the recurrence engine inside n8n.
+
 ## Why Use It
 
 [rrule.net](https://rrule.net) is a hosted scheduler for automation workflows. It can run simple schedules such as `Every minute`, but also gives you a more explicit and testable scheduling model than cron as your workflows grow.
@@ -121,6 +127,12 @@ Configure:
   before the global start
 - optional start, progress, and end targets, including the progress interval
 
+Start and end must be ISO date-times with `Z` or an explicit UTC offset, for
+example `2026-12-15T02:00:00Z` and `2026-12-15T04:00:00Z`. Choose future dates
+before publishing. Bounds use whole-second precision; nonzero fractional
+seconds, missing offsets, invalid calendar dates, and end-before-start intervals
+are rejected before any existing remote schedule is replaced.
+
 The target count is dynamic:
 
 ```text
@@ -138,6 +150,11 @@ clause. Regional reminders use the audience timezone, while global warnings and
 lifecycle phases use UTC. Progress executions are constrained to the half-open
 interval `[start, end)`, so an interval ending at 04:00 does not emit a 04:00
 progress check.
+
+The progress grid is anchored to the exact start instant and evaluated in UTC.
+It keeps the same elapsed spacing through regional clock changes. Customer
+reminders instead subtract calendar days from the event's local date in each
+audience timezone; that local date can differ between regions.
 
 The end target represents the planned boundary. A production workflow should
 verify service recovery before disabling maintenance mode or announcing
@@ -208,6 +225,19 @@ The advanced import mode deliberately rejects target-level natural-language
 structured generation, or canonical `recurrence` / `event_schedule` JSON for
 definitions created elsewhere.
 
+### Temporal JSON compatibility
+
+The current hosted API uses the libraries' 0.2.x temporal contract. Every
+recurrence expression must carry `"temporalVersion": 2`, including expressions
+nested inside `event_schedule.recurrence` and recurrence algebra. Event Window
+adds this marker automatically to its progress recurrence. Event-set `version`
+is a separate snapshot identifier.
+
+The advanced import path does not migrate legacy recurrence JSON. Generate
+current canonical JSON with `@rrulenet/recurrence` or `@rrulenet/events` 0.2.2,
+or explicitly migrate and review the definition before importing it. The
+hosted API performs the complete executable-source validation.
+
 ## Publication Behavior
 
 When the workflow is published, the node creates or resumes a persistent schedule in [rrule.net](https://rrule.net).
@@ -259,9 +289,10 @@ https://rrule.net/guides/schedule-targets
 
 ## Workflow Templates
 
-The repository includes an importable target-aware example:
+The Coffee Newsletter is published in the n8n template library:
 
-- [Send a coffee newsletter at 09:00 local time in every region](https://github.com/rrulenet/n8n-nodes-rrulenet/tree/main/templates/coffee-newsletter)
+- [Send localized 9am RSS coffee newsletters with rrule.net and Brevo](https://n8n.io/workflows/17507-send-localized-9am-rss-coffee-newsletters-with-rrulenet-and-brevo/)
+- [Workflow source and setup guide](https://github.com/rrulenet/n8n-nodes-rrulenet/tree/main/templates/coffee-newsletter)
 
 It combines Paris, New York, Tokyo, and Perth in one logical schedule, then
 routes each execution to a localized RSS digest sent through Brevo.

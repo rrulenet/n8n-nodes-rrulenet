@@ -1,6 +1,6 @@
 {
     "name": "@rrulenet/n8n-nodes-rrulenet",
-    "version": "0.1.4",
+    "version": "0.2.0",
     "description": "n8n community node for rrule.net advanced schedules.",
     "license": "MIT",
     "author": {
@@ -52,10 +52,11 @@
         ]
     },
     "devDependencies": {
-        "@n8n/node-cli": "^0.38.8",
+        "@n8n/node-cli": "0.55.6",
+        "@rrulenet/events": "0.2.2",
         "eslint": "9.32.0",
         "prettier": "3.6.2",
-        "release-it": "^20.2.1",
+        "release-it": "21.1.0",
         "typescript": "5.9.2"
     },
     "peerDependencies": {

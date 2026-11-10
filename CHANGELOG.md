@@ -1,7 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
+- Update the release tooling to Node.js 24.22.1, `@n8n/node-cli` 0.55.6,
+  and `release-it` 21.1.0.
+- Keep the Schedule Trigger out of the AI tool picker.
+- Improve Schedule Trigger discovery in n8n for cron, regional schedules,
+  daylight saving time, and maintenance windows.
+- Emit `temporalVersion: 2` on generated progress recurrence JSON for the hosted
+  0.2.x temporal contract, verified against the published 0.2.2 event engine.
+- Reject ambiguous event bounds, invalid calendar dates, and nonzero fractional
+  seconds before replacing an existing remote schedule.
 - Add a structured Event Window mode that dynamically generates regional
   reminders, operational warnings, and enabled lifecycle targets from editable
   business parameters.
@@ -14,6 +23,8 @@
 - Align the visible workflow lifecycle terminology with n8n's Publish and
   Unpublish actions while preserving existing workflow parameters.
 - Add schedule-definition and lifecycle regression tests to CI.
+- Verify all 13 maintenance target sequences, spring and autumn clock changes,
+  replacement failures, and unchanged Coffee Newsletter compatibility.
 
 ## 0.1.4
 

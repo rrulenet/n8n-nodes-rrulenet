@@ -61,7 +61,7 @@ function eventScheduleTarget(id, timezone = 'UTC') {
 	};
 }
 
-function createHookContext(parameters, staticData = {}, responseScheduleId = 'schedule-new') {
+function createHookContext(parameters, staticData = {}, responseScheduleId = 'schedule-new', responses = []) {
 	const requests = [];
 	const context = {
 		getNodeWebhookUrl: () => 'https://n8n.example.com/webhook/rrulenet',
@@ -82,6 +82,9 @@ function createHookContext(parameters, staticData = {}, responseScheduleId = 'sc
 		helpers: {
 			httpRequestWithAuthentication: async (_credentialType, options) => {
 				requests.push(options);
+				if (responses[requests.length - 1]) {
+					return responses[requests.length - 1];
+				}
 				const isScheduleResponse =
 					options.url === '/v1/schedules' || options.url.endsWith('/resume');
 				return {
@@ -104,6 +107,29 @@ function createHookContext(parameters, staticData = {}, responseScheduleId = 'sc
 }
 
 describe('event-window target generation', () => {
+	it('normalizes explicit offsets and accepts zero fractional seconds', () => {
+		const targets = buildEventWindowTargets({
+			...maintenanceWindowEventWindow,
+			windowStart: '2026-09-15T04:00:00.000+02:00',
+			windowEnd: '2026-09-15T06:00:00+02:00',
+		});
+		assert.deepEqual(targets, buildEventWindowTargets(maintenanceWindowEventWindow));
+	});
+
+	it('rejects ambiguous dates, invalid calendar dates and fractional instants', () => {
+		for (const field of ['windowStart', 'windowEnd']) {
+			for (const value of [
+				'2026-09-15', '2026-09-15T02:00:00', '2026-02-30T02:00:00Z',
+				'2026-09-15T02:00:00.001Z', '2026-09-15T02:00:00.000000001Z',
+			]) {
+				assert.throws(() => buildEventWindowTargets({
+					...maintenanceWindowEventWindow,
+					[field]: value,
+				}), /ISO date and time|valid date and time|whole-second precision/);
+			}
+		}
+	});
+
 	it('generates the complete reference definition dynamically', () => {
 		const targets = buildEventWindowTargets(maintenanceWindowEventWindow);
 
@@ -132,6 +158,7 @@ describe('event-window target generation', () => {
 
 		const progress = targets.find(({ id }) => id === 'maintenance-progress');
 		assert.equal(progress.event_schedule.transform.kind, 'during');
+		assert.equal(progress.event_schedule.recurrence.temporalVersion, 2);
 		assert.equal(progress.event_schedule.recurrence.include[0].rule.interval, 10);
 		assert.equal(progress.event_schedule.recurrence.include[0].rule.count, undefined);
 	});
@@ -301,6 +328,7 @@ describe('explicit schedule definitions', () => {
 
 		const progress = targets.find(({ id }) => id === 'maintenance-progress');
 		assert.equal(progress.event_schedule.transform.kind, 'during');
+		assert.equal(progress.event_schedule.recurrence.temporalVersion, 2);
 		assert.equal(progress.event_schedule.recurrence.include[0].rule.interval, 10);
 		assert.equal(progress.event_schedule.recurrence.include[0].rule.count, 13);
 	});
@@ -396,6 +424,72 @@ describe('explicit schedule definitions', () => {
 });
 
 describe('schedule lifecycle compatibility', () => {
+	it('resumes the published Coffee Newsletter without adding a schedule mode', async () => {
+		const workflow = require('../templates/coffee-newsletter/coffee-newsletter.workflow.json');
+		const { parameters } = workflow.nodes.find(({ type }) =>
+			type === '@rrulenet/n8n-nodes-rrulenet.rruleNetScheduleTrigger');
+		assert.equal(parameters.scheduleMode, undefined);
+		const staticData = {
+			scheduleId: 'coffee-existing',
+			scheduleInput: parameters.input,
+			timezone: parameters.timezone,
+		};
+		const { context, requests } = createHookContext(parameters, staticData);
+		assert.equal(await new RruleNetScheduleTrigger().webhookMethods.default.create.call(context), true);
+		assert.deepEqual(requests.map(({ method, url }) => [method, url]), [
+			['PATCH', '/v1/schedules/coffee-existing'],
+			['POST', '/v1/schedules/coffee-existing/resume'],
+		]);
+		assert.equal(staticData.scheduleId, 'coffee-existing');
+		assert.equal(staticData.scheduleDefinitionMode, 'natural');
+	});
+
+	it('rejects an invalid event window before deleting an existing schedule', async () => {
+		const staticData = { scheduleId: 'schedule-existing' };
+		const { context, requests } = createHookContext({
+			scheduleMode: 'eventWindow',
+			timezone: 'UTC',
+			...maintenanceWindowEventWindow,
+			windowStart: '2026-09-15T02:00:00.001Z',
+		}, staticData);
+		await assert.rejects(() => new RruleNetScheduleTrigger().webhookMethods.default.create.call(context),
+			/whole-second precision/);
+		assert.equal(requests.length, 0);
+		assert.equal(staticData.scheduleId, 'schedule-existing');
+	});
+
+	it('does not create a replacement if deleting the previous schedule fails', async () => {
+		const staticData = { scheduleId: 'schedule-existing' };
+		const { context, requests } = createHookContext({
+			scheduleMode: 'eventWindow',
+			timezone: 'UTC',
+			...maintenanceWindowEventWindow,
+		}, staticData, 'unused', [{
+			statusCode: 403,
+			body: { error: 'Schedule deletion is forbidden' },
+		}]);
+		await assert.rejects(() => new RruleNetScheduleTrigger().webhookMethods.default.create.call(context),
+			/Schedule deletion is forbidden/);
+		assert.deepEqual(requests.map(({ method }) => method), ['DELETE']);
+		assert.equal(staticData.scheduleId, 'schedule-existing');
+	});
+
+	it('surfaces replacement errors without keeping the deleted schedule in static data', async () => {
+		const staticData = { scheduleId: 'schedule-existing' };
+		const { context, requests } = createHookContext({
+			scheduleMode: 'eventWindow',
+			timezone: 'UTC',
+			...maintenanceWindowEventWindow,
+		}, staticData, 'unused', [
+			{ statusCode: 200, body: {} },
+			{ statusCode: 400, body: { error: 'Failed to create schedule', details: 'Target cadence rejected' } },
+		]);
+		await assert.rejects(() => new RruleNetScheduleTrigger().webhookMethods.default.create.call(context),
+			/Target cadence rejected/);
+		assert.deepEqual(requests.map(({ method }) => method), ['DELETE', 'POST']);
+		assert.equal(staticData.scheduleId, undefined);
+	});
+
 	it('creates one generated event-window schedule with the required target count', async () => {
 		const parameters = {
 			scheduleMode: 'eventWindow',
