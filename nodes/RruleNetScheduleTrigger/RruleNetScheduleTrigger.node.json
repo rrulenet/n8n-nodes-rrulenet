@@ -1,5 +1,5 @@
 {
-	"node": "@rrulenet/n8n-nodes-rrulenet",
+	"node": "@rrulenet/n8n-nodes-rrulenet.rruleNetScheduleTrigger",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": ["Productivity", "Development"],

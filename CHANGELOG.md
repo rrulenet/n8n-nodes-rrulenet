@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Fix the node identifier in n8n Codex metadata for Creator Portal verification.
+
 ## 0.2.0
 
 - Update the release tooling to Node.js 24.22.1, `@n8n/node-cli` 0.55.6,
