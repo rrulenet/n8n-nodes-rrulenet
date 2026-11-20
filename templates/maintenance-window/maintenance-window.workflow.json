@@ -1,0 +1,1945 @@
+{
+  "name": "Orchestrate a global SaaS maintenance window",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "scheduleMode": "eventWindow",
+        "name": "Global SaaS maintenance window",
+        "inputDescription": "One shared maintenance window with local customer reminders, operations warnings, and exact lifecycle phases.",
+        "timezone": "UTC",
+        "eventId": "saas-maintenance-example",
+        "eventLabel": "Global SaaS maintenance window",
+        "windowStart": "2027-03-28T00:30:00Z",
+        "windowEnd": "2027-03-28T02:30:00Z",
+        "audiences": {
+          "audience": [
+            {
+              "id": "paris",
+              "label": "Paris",
+              "timezone": "Europe/Paris",
+              "metadata": "{\"locale\": \"fr-FR\"}"
+            },
+            {
+              "id": "new-york",
+              "label": "New York",
+              "timezone": "America/New_York",
+              "metadata": "{\"locale\": \"en-US\"}"
+            },
+            {
+              "id": "tokyo",
+              "label": "Tokyo",
+              "timezone": "Asia/Tokyo",
+              "metadata": "{\"locale\": \"ja-JP\"}"
+            },
+            {
+              "id": "perth",
+              "label": "Perth",
+              "timezone": "Australia/Perth",
+              "metadata": "{\"locale\": \"en-AU\"}"
+            }
+          ]
+        },
+        "customerReminders": {
+          "reminder": [
+            {
+              "id": "7d",
+              "label": "Seven calendar days before",
+              "daysBefore": 7,
+              "localTime": "09:00"
+            },
+            {
+              "id": "1d",
+              "label": "One calendar day before",
+              "daysBefore": 1,
+              "localTime": "09:00"
+            }
+          ]
+        },
+        "operationalWarnings": {
+          "warning": [
+            {
+              "id": "2h",
+              "label": "Two hours before",
+              "offsetValue": 2,
+              "offsetUnit": "hours"
+            },
+            {
+              "id": "15m",
+              "label": "Fifteen minutes before",
+              "offsetValue": 15,
+              "offsetUnit": "minutes"
+            }
+          ]
+        },
+        "includeStartTarget": true,
+        "includeProgressTarget": true,
+        "progressIntervalMinutes": 10,
+        "includeEndTarget": true,
+        "onDeactivate": "pause"
+      },
+      "id": "cb66c9c9-b63b-584e-a7f3-e0eedfe4760f",
+      "name": "Schedule the maintenance window",
+      "type": "@rrulenet/n8n-nodes-rrulenet.rruleNetScheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "9f940b11-f0c3-58b5-a073-cf7cc091fa3e",
+      "name": "Run manual preview",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        430
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const samples = [\n  [\"customer-reminder-7d-paris\", \"customer-reminder-7d-paris\", \"2027-03-21T08:00:00Z\", \"Europe/Paris\", \"paris\", \"fr-FR\"],\n  [\"customer-reminder-1d-paris\", \"customer-reminder-1d-paris\", \"2027-03-27T08:00:00Z\", \"Europe/Paris\", \"paris\", \"fr-FR\"],\n  [\"customer-reminder-7d-new-york\", \"customer-reminder-7d-new-york\", \"2027-03-20T13:00:00Z\", \"America/New_York\", \"new-york\", \"en-US\"],\n  [\"customer-reminder-1d-new-york\", \"customer-reminder-1d-new-york\", \"2027-03-26T13:00:00Z\", \"America/New_York\", \"new-york\", \"en-US\"],\n  [\"customer-reminder-7d-tokyo\", \"customer-reminder-7d-tokyo\", \"2027-03-21T00:00:00Z\", \"Asia/Tokyo\", \"tokyo\", \"ja-JP\"],\n  [\"customer-reminder-1d-tokyo\", \"customer-reminder-1d-tokyo\", \"2027-03-27T00:00:00Z\", \"Asia/Tokyo\", \"tokyo\", \"ja-JP\"],\n  [\"customer-reminder-7d-perth\", \"customer-reminder-7d-perth\", \"2027-03-21T01:00:00Z\", \"Australia/Perth\", \"perth\", \"en-AU\"],\n  [\"customer-reminder-1d-perth\", \"customer-reminder-1d-perth\", \"2027-03-27T01:00:00Z\", \"Australia/Perth\", \"perth\", \"en-AU\"],\n  [\"ops-warning-2h\", \"ops-warning-2h\", \"2027-03-27T22:30:00Z\", \"UTC\"],\n  [\"ops-warning-15m\", \"ops-warning-15m\", \"2027-03-28T00:15:00Z\", \"UTC\"],\n  [\"maintenance-start\", \"maintenance-start\", \"2027-03-28T00:30:00Z\", \"UTC\"],\n  [\"first-progress-check\", \"maintenance-progress\", \"2027-03-28T00:30:00Z\", \"UTC\"],\n  [\"last-progress-check\", \"maintenance-progress\", \"2027-03-28T02:20:00Z\", \"UTC\"],\n  [\"recovery-confirmed\", \"maintenance-end\", \"2027-03-28T02:30:00Z\", \"UTC\", null, null, \"healthy\"],\n  [\"recovery-failed\", \"maintenance-end\", \"2027-03-28T02:30:00Z\", \"UTC\", null, null, \"unhealthy\"],\n  [\"recovery-unknown\", \"maintenance-end\", \"2027-03-28T02:30:00Z\", \"UTC\"],\n  [\"replayed-start\", \"maintenance-start\", \"2027-03-28T00:30:00Z\", \"UTC\"],\n  [\"unknown-target\", \"unexpected-target\", \"2027-03-28T00:30:00Z\", \"UTC\"],\n  [\"missing-schedule-id\", \"maintenance-start\", \"2027-03-28T00:30:00Z\", \"UTC\"],\n  [\"missing-target-id\", \"\", \"2027-03-28T00:30:00Z\", \"UTC\"],\n  [\"invalid-occurrence\", \"maintenance-start\", \"invalid\", \"UTC\"],\n];\n\nreturn samples.map(([scenario, targetId, scheduledFor, targetTimezone, region, locale, recovery]) => ({\n  json: {\n    schedule_id: scenario === 'missing-schedule-id' ? ''\n      : targetId === 'maintenance-end' ? `preview-${scenario}` : 'preview-maintenance',\n    execution_id: `preview-${scenario}`,\n    target_id: targetId,\n    scheduled_for: scheduledFor,\n    target_timezone: targetTimezone,\n    target_metadata: { region, locale },\n    preview_scenario: scenario,\n    preview_recovery: recovery ?? 'unknown',\n  },\n}));"
+      },
+      "id": "4f2626b6-b9ea-5ab8-9ba3-7f09cd89f48f",
+      "name": "Load sample occurrences",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        190,
+        430
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(({ json: source }, index) => {\n  const scheduleId = typeof source.schedule_id === 'string' ? source.schedule_id.trim() : '';\n  const targetId = typeof source.target_id === 'string' ? source.target_id : '';\n  const value = source.scheduled_for;\n  const isIso = typeof value === 'string'\n    && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$/.test(value);\n  const instant = isIso ? Date.parse(value) : NaN;\n  const scheduledFor = Number.isFinite(instant) ? new Date(instant).toISOString() : null;\n  const metadata = source.target_metadata ?? {};\n  const occurrenceKey = scheduleId && targetId && scheduledFor\n    ? JSON.stringify([scheduleId, targetId, scheduledFor])\n    : null;\n  const live = source.enable_live_actions === true\n    && $execution.mode === 'production' && source.preview_scenario == null;\n  if (live && occurrenceKey && ['maintenance-progress', 'maintenance-end'].includes(targetId)) {\n    if (!/^https?:\\/\\/[^\\s]+$/i.test(source.health_url ?? '')) {\n      throw new Error('Set health_url to the service health URL in Configure maintenance actions.');\n    }\n    if (!Number.isInteger(source.healthy_status) || source.healthy_status < 200 || source.healthy_status > 299) {\n      throw new Error('Set healthy_status to a 2xx HTTP status code.');\n    }\n  }\n  return {\n    json: {\n      mode: live ? 'live' : 'preview',\n      schedule_id: scheduleId,\n      target_id: targetId,\n      target_timezone: source.target_timezone ?? null,\n      scheduled_for: scheduledFor,\n      execution_id: source.execution_id ?? null,\n      occurrence_key: occurrenceKey,\n      region: metadata.region ?? null,\n      locale: metadata.locale ?? null,\n      preview_scenario: source.preview_scenario ?? null,\n      recovery: source.preview_recovery ?? 'unknown',\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "id": "b5509a12-ba7c-5b90-b7b7-cb2ff9ba9000",
+      "name": "Prepare occurrence context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        590,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "renameOutput": true,
+              "outputKey": "Customer reminder D-7",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5465f960-bf83-5529-a41b-2b8c151cb1df",
+                    "leftValue": "={{ $json.occurrence_key && $json.mode === 'preview' ? $json.target_id : '' }}",
+                    "rightValue": "customer-reminder-7d-",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Customer reminder D-1",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1f115acf-4279-5dfe-aaca-600e68f208a4",
+                    "leftValue": "={{ $json.occurrence_key && $json.mode === 'preview' ? $json.target_id : '' }}",
+                    "rightValue": "customer-reminder-1d-",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Operations warning T-2h",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "081877bb-d3d9-5edb-9b82-1f4d0a2605a8",
+                    "leftValue": "={{ $json.occurrence_key && $json.mode === 'preview' ? $json.target_id : '' }}",
+                    "rightValue": "ops-warning-2h",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Operations warning T-15m",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "566ce9ba-ebda-534f-971e-80ccc77b351e",
+                    "leftValue": "={{ $json.occurrence_key && $json.mode === 'preview' ? $json.target_id : '' }}",
+                    "rightValue": "ops-warning-15m",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Start",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "75214b4a-b94c-538a-9bd0-9c6115ab563a",
+                    "leftValue": "={{ $json.occurrence_key && $json.mode === 'preview' ? $json.target_id : '' }}",
+                    "rightValue": "maintenance-start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Progress",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "13a3b948-eff3-51c5-9090-36b40dfa3c60",
+                    "leftValue": "={{ $json.occurrence_key && $json.mode === 'preview' ? $json.target_id : '' }}",
+                    "rightValue": "maintenance-progress",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Planned end",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "45d81188-6d4f-5fc9-8d69-6ae5823bd32f",
+                    "leftValue": "={{ $json.occurrence_key && $json.mode === 'preview' ? $json.target_id : '' }}",
+                    "rightValue": "maintenance-end",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Live health check",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "563c62ac-bee8-5901-ba06-b5a241c63ca8",
+                    "leftValue": "={{ $json.mode === 'live' && !!$json.occurrence_key && ['maintenance-progress', 'maintenance-end'].includes($json.target_id) }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Live maintenance start",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b80623d4-d5ac-5145-9102-369ae8f68e88",
+                    "leftValue": "={{ $json.mode === 'live' && !!$json.occurrence_key && $json.target_id === 'maintenance-start' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Live operations warning",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c8550f22-e451-50fd-a7a9-6124da352d42",
+                    "leftValue": "={{ $json.mode === 'live' && !!$json.occurrence_key && ['ops-warning-2h', 'ops-warning-15m'].includes($json.target_id) }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Live customer reminders",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cc8ae3c1-fe5a-51a2-95b9-b7f5b24c4018",
+                    "leftValue": "={{ $json.mode === 'live' && !!$json.occurrence_key && /^customer-reminder-(7d|1d)-/.test($json.target_id) }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Review only"
+        }
+      },
+      "id": "0d9f0b27-d075-5737-97a4-86098fae8130",
+      "name": "Route by target ID",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        785,
+        970
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"phase\": \"customer-reminder-7d\",\n  \"decision\": \"preview\",\n  \"proposed_actions\": [\n    \"Preview a localized customer notice for the region\"\n  ]\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "82fff705-1d85-5e80-b15a-9c907bde1a65",
+      "name": "Preview D-7 customer notice",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1105,
+        -820
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"phase\": \"customer-reminder-1d\",\n  \"decision\": \"preview\",\n  \"proposed_actions\": [\n    \"Preview a localized customer notice for the region\"\n  ]\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9256aca6-0b16-509a-80f3-e38b7c110248",
+      "name": "Preview D-1 customer notice",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1105,
+        -620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"phase\": \"ops-warning-2h\",\n  \"decision\": \"preview\",\n  \"proposed_actions\": [\n    \"Preview an operations warning\",\n    \"Review the maintenance checklist and dependencies\"\n  ]\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "4d003ff1-a843-554c-86c1-8055de6c7936",
+      "name": "Preview operations readiness",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1105,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"phase\": \"ops-warning-15m\",\n  \"decision\": \"preview\",\n  \"proposed_actions\": [\n    \"Preview a final operations warning\",\n    \"Verify service health and maintenance readiness\"\n  ]\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "294508ca-3c1a-569a-bbe1-4fd83973fe14",
+      "name": "Preview final preflight",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1105,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"phase\": \"maintenance-start\",\n  \"decision\": \"preview\",\n  \"proposed_actions\": [\n    \"Enable the pre-created maintenance rule\",\n    \"Set the status incident to in progress\",\n    \"Notify operations\"\n  ]\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7b36791d-6fda-5b9a-9c56-46d14eda3624",
+      "name": "Preview start actions",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1105,
+        70
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"phase\": \"maintenance-progress\",\n  \"decision\": \"preview\",\n  \"proposed_actions\": [\n    \"Check the health endpoint and record progress\",\n    \"Alert operations if a check fails\"\n  ]\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "69465afd-d53f-5826-8a2d-b9e74678e3db",
+      "name": "Preview service health check",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1105,
+        270
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, index) => {\n  const healthy = item.json.recovery === 'healthy';\n  return {\n    json: {\n      ...item.json,\n      phase: 'maintenance-end',\n      decision: healthy ? 'preview-completion' : 'hold-maintenance',\n      proposed_actions: healthy\n        ? ['Disable the pre-created maintenance rule', 'Complete the status incident', 'Notify customers and operations']\n        : ['Keep maintenance mode enabled', 'Keep the status incident open', 'Alert operations and recheck recovery'],\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "id": "71db90a1-fe3f-5378-9b12-e72668865ea8",
+      "name": "Preview recovery decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1105,
+        525
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"decision\": \"review-only\",\n  \"proposed_actions\": []\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "824c01c0-637d-5061-a4b3-28212a4fd95a",
+      "name": "Review unknown or invalid occurrences",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1105,
+        1740
+      ]
+    },
+    {
+      "parameters": {
+        "width": 808,
+        "height": 477,
+        "color": 1,
+        "content": "### How it works\n\nEvent Window schedules regional reminders, operations warnings, and the start, progress, and end of a global SaaS maintenance window. Preview shows planned actions. Live mode sends Brevo notices and checks the service. Optional Slack, Cloudflare, and Statuspage actions keep operators, traffic, and the public status page in sync.\n\n### Setup\n\n1. Install `@rrulenet/n8n-nodes-rrulenet` 0.2.0 or later. Tested with 0.2.1 on self-hosted n8n 2.47.3. See the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation-and-management/).\n2. Run **Run manual preview** with the workflow unpublished. Preview requires no credentials.\n3. To go live, set the schedule and public HTTPS webhook. In **Configure maintenance actions**, set the health URL, expected HTTP status, verified sender, and regional recipients. Add rrule.net and Brevo credentials. Keep Brevo sandbox on for your first test.\n4. Optionally add a Slack channel, a pre-created Cloudflare maintenance rule, and a matching scheduled Statuspage maintenance. Add credentials to the Slack node and the enabled HTTP nodes. Turn off automatic start and completion on that Statuspage maintenance.\n5. Enable **Live Actions** in **Configure maintenance actions** and publish. Unpublishing pauses the schedule by default. Republishing an unchanged schedule resumes its future occurrences.\n\n### Customization\n\nUse a health URL that stays reachable while the maintenance rule is active. A failed final check keeps the maintenance open. A successful check allows the enabled closing actions and then the Brevo recovery notice."
+      },
+      "id": "86360990-fd69-5605-b288-e98b6a8e858f",
+      "name": "Start here",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -950
+      ]
+    },
+    {
+      "parameters": {
+        "width": 423,
+        "height": 725,
+        "color": 7,
+        "content": "## Choose an input\n\nUse Event Window for scheduled occurrences or run the manual branch to load synthetic examples. Manual runs always use Preview."
+      },
+      "id": "fd5dc637-d7bb-50c2-816b-466ce8b790e1",
+      "name": "Choose an input",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -125
+      ]
+    },
+    {
+      "parameters": {
+        "width": 650,
+        "height": 1325,
+        "color": 7,
+        "content": "## Configure and route\n\nSet the delivery and health options in one place. The Switch sends each target to the Preview column above or to one of the live paths."
+      },
+      "id": "c81df0aa-7a10-5978-ad1c-d275535f9656",
+      "name": "Prepare and route occurrences",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        355,
+        145
+      ]
+    },
+    {
+      "parameters": {
+        "width": 350,
+        "height": 890,
+        "color": 7,
+        "content": "## Preview · Before the window\n\nInspect the two local customer reminders and the two operations warnings."
+      },
+      "id": "29a74370-a5ca-55fb-b0fa-aa9da48f8646",
+      "name": "Prepare for maintenance",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1015,
+        -955
+      ]
+    },
+    {
+      "parameters": {
+        "width": 350,
+        "height": 458,
+        "color": 7,
+        "content": "## Preview · During the window\n\nInspect the planned start actions and a service health check."
+      },
+      "id": "29906a86-e267-589e-a2b6-ea2ba2e40e7c",
+      "name": "During maintenance",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1015,
+        -45
+      ]
+    },
+    {
+      "parameters": {
+        "width": 350,
+        "height": 219,
+        "color": 7,
+        "content": "## Preview · Recovery\n\nCompare the decisions for a healthy, failed, or unknown recovery check."
+      },
+      "id": "8087914c-9825-5abb-b26e-03aad00935c4",
+      "name": "Recover or review",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1015,
+        429
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d0c87a10-9e74-512b-959e-c4c24c3549e4",
+              "name": "enable_live_actions",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "94239519-12c9-58b4-aaf5-28d6364d2554",
+              "name": "health_url",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "09f9baa3-2b14-518e-9b24-03467002dea7",
+              "name": "healthy_status",
+              "type": "number",
+              "value": 200
+            },
+            {
+              "id": "b0c11250-e202-5003-a9f4-b4b519b16506",
+              "name": "brevo_sandbox",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "id": "73a42714-080d-54b5-8948-a4fc730773ac",
+              "name": "sender_email",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "0263dcc3-3652-58fc-afa4-3cd0e8f68d3c",
+              "name": "service_name",
+              "type": "string",
+              "value": "Example SaaS"
+            },
+            {
+              "id": "77ba10a9-3146-532f-a7e4-9df0d5e4a5b4",
+              "name": "regional_recipients",
+              "type": "object",
+              "value": "{\"paris\":[],\"new-york\":[],\"tokyo\":[],\"perth\":[]}"
+            },
+            {
+              "id": "c53e7788-9726-5d7e-841e-a0d208f0c1a3",
+              "name": "slack_channel_id",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "a5218675-e04e-5047-8d58-c09e8392879b",
+              "name": "cloudflare",
+              "type": "object",
+              "value": "{\"zone_id\":\"\",\"ruleset_id\":\"\",\"rule_id\":\"\"}"
+            },
+            {
+              "id": "27cbc8a9-3c1c-53d5-bb14-5e1325db2559",
+              "name": "statuspage",
+              "type": "object",
+              "value": "{\"page_id\":\"\",\"incident_id\":\"\"}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a9832f04-406c-573b-8971-663176832821",
+      "name": "Configure maintenance actions",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        390,
+        270
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Configure maintenance actions').item.json.health_url }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "f4f73a3b-4a26-530a-bd31-4af75859076b",
+      "name": "Check service health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1105,
+        745
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(({ json: response }, index) => {\n  const occurrence = $('Prepare occurrence context').itemMatching(index).json;\n  const expected = $('Configure maintenance actions').itemMatching(index).json.healthy_status;\n  const final = occurrence.target_id === 'maintenance-end';\n  const end = $node['Schedule the maintenance window'].parameter.windowEnd;\n  const matchesEnd = !final || Date.parse(end) === Date.parse(occurrence.scheduled_for);\n  const status = response.statusCode ?? null;\n  const healthy = !response.error && status === expected && matchesEnd;\n  return {\n    json: {\n      ...occurrence,\n      health_status: status,\n      health_expected_status: expected,\n      health_ok: healthy,\n      decision: healthy ? (final ? 'recovery-confirmed' : 'healthy-progress') : 'health-check-failed',\n      health_error: !matchesEnd ? 'The occurrence does not match the configured end time.'\n        : response.error ? 'The health endpoint could not be reached.'\n        : healthy ? null : `Expected HTTP ${expected}, received ${status ?? 'no status'}.`,\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "id": "107b68aa-15fe-526b-a720-8b95d4be1077",
+      "name": "Evaluate health check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        745
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "renameOutput": true,
+              "outputKey": "Health check failed",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ea24ef70-8b85-59e5-a6be-22134477f86b",
+                    "leftValue": "={{ $json.health_ok === false }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Recovery confirmed",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "de05fd25-0f52-54bc-8f0f-aeba594295aa",
+                    "leftValue": "={{ $json.mode === 'live' && $json.target_id === 'maintenance-end' && $json.health_ok === true }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a3451121-0145-5832-8001-ca0be8c94443",
+      "name": "Route health result",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1455,
+        745
+      ]
+    },
+    {
+      "parameters": {
+        "errorType": "errorMessage",
+        "errorMessage": "={{ $json.target_id + ' (' + $json.scheduled_for + '): ' + $json.health_error + ($json.slack_error ? ' Slack: ' + $json.slack_error : '') }}"
+      },
+      "id": "55ac4623-1af6-5707-afab-4b0a47470f8c",
+      "name": "Report failed health check",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        4970,
+        1350
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const schedule = $node['Schedule the maintenance window'].parameter;\nconst audiences = schedule.audiences?.audience ?? [];\nconst emailPattern = /^[^\\s@,]+@[^\\s@,]+\\.[^\\s@,]+$/;\n\nfunction message(locale, service, start, end, recovery) {\n  const language = locale.split('-')[0].toLowerCase();\n  if (language === 'fr') {\n    return recovery\n      ? [`${service} – reprise du service`, `La maintenance de ${service} est terminée. Le service est de nouveau disponible.`]\n      : [`${service} – maintenance programmée`, `Une maintenance de ${service} est prévue du ${start} au ${end} (heure locale).`];\n  }\n  if (language === 'ja') {\n    return recovery\n      ? [`${service} – サービス復旧のお知らせ`, `${service}のメンテナンスが完了し、サービスが復旧しました。`]\n      : [`${service} – メンテナンスのお知らせ`, `${service}のメンテナンスを${start}から${end}まで（現地時間）実施します。`];\n  }\n  return recovery\n    ? [`${service} – service restored`, `Maintenance for ${service} is complete and the service is available again.`]\n    : [`${service} – scheduled maintenance`, `Maintenance for ${service} is scheduled from ${start} to ${end} (local time).`];\n}\n\nreturn $input.all().flatMap(({ json: occurrence }, index) => {\n  const reminder = occurrence.target_id.match(/^customer-reminder-(?:7d|1d)-(.+)$/);\n  const recovery = occurrence.target_id === 'maintenance-end' && occurrence.health_ok === true;\n  if (occurrence.mode !== 'live' || !occurrence.occurrence_key || (!reminder && !recovery)) return [];\n\n  const config = $('Configure maintenance actions').itemMatching(index).json;\n  const selected = recovery ? audiences : audiences.filter(audience => audience.id === reminder[1]);\n  if (!selected.length) throw new Error('The notice has no matching audience on the Event Window trigger.');\n  const recipients = new Map();\n  for (const audience of selected) {\n    const addresses = config.regional_recipients?.[audience.id] ?? [];\n    if (!Array.isArray(addresses) || addresses.some(email => typeof email !== 'string' || !emailPattern.test(email.trim()))) {\n      throw new Error(`Enter an array of valid email addresses for ${audience.id} in regional_recipients.`);\n    }\n    for (const address of addresses) {\n      const email = address.trim().toLowerCase();\n      if (!recipients.has(email)) recipients.set(email, audience);\n    }\n  }\n  if (!recipients.size) return [];\n  const sender = config.sender_email?.trim();\n  const service = config.service_name?.trim();\n  if (!emailPattern.test(sender ?? '') || !service) {\n    throw new Error('Configure a verified Brevo sender_email and a service_name.');\n  }\n  return [...recipients].map(([email, audience]) => {\n    const locale = JSON.parse(audience.metadata || '{}').locale || 'en';\n    const format = new Intl.DateTimeFormat(locale, {\n      dateStyle: 'medium', timeStyle: 'long', timeZone: audience.timezone,\n    });\n    const start = recovery ? '' : format.format(new Date(schedule.windowStart));\n    const end = recovery ? '' : format.format(new Date(schedule.windowEnd));\n    const [subject, textContent] = message(locale, service, start, end, recovery);\n    const sandbox = config.brevo_sandbox !== false;\n    return {\n      json: {\n        target_id: occurrence.target_id,\n        occurrence_key: occurrence.occurrence_key,\n        delivery_key: JSON.stringify([occurrence.occurrence_key, email, sandbox]),\n        brevo_sandbox: sandbox,\n        email: { sender: { email: sender }, to: [{ email }], subject, textContent },\n      },\n      pairedItem: { item: index },\n    };\n  });\n});"
+      },
+      "id": "5b7cead8-1cdd-5e45-92be-14b2f2343c6d",
+      "name": "Prepare Brevo notice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4970,
+        1915
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sendInBlueApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  ...$json.email,\n  headers: {\n    ...($json.brevo_sandbox ? { 'X-Sib-Sandbox': 'drop' } : {}),\n    IdempotencyKey: $json.delivery_key.hash('sha256').replace(/^(.{8})(.{4}).(.{3}).(.{3})(.{12}).*$/, '$1-$2-4$3-8$4-$5')\n  }\n}) }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "690b70d0-e489-5e86-b3de-0a3c818bacb7",
+      "name": "Send notice with Brevo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5140,
+        1910
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(({ json: response }, index) => {\n  const notice = $('Prepare Brevo notice').itemMatching(index).json;\n  const duplicate = response.statusCode === 400\n    && response.body?.code === 'duplicate_parameter'\n    && /idempotency/i.test(response.body?.message ?? '');\n  const messageId = response.body?.messageId ?? null;\n  if (!duplicate && (response.statusCode !== 201 || !messageId)) {\n    throw new Error(`Brevo did not accept the ${notice.target_id} notice (HTTP ${response.statusCode ?? 'unknown'}).`);\n  }\n  return {\n    json: {\n      target_id: notice.target_id,\n      occurrence_key: notice.occurrence_key,\n      message_id: messageId,\n      delivery: duplicate ? 'duplicate-skipped' : notice.brevo_sandbox ? 'sandbox-accepted' : 'accepted',\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "id": "30f9f207-4643-5172-b249-8094ef4c2c5e",
+      "name": "Record Brevo result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5315,
+        1905
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Live · Verify service health\n\nCheck the service during the window and again at the planned end. Only a successful final check can close the maintenance.",
+        "width": 595,
+        "height": 279,
+        "color": 7
+      },
+      "id": "170682f5-d02d-5d42-9793-32f018d76a08",
+      "name": "Live health checks",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1015,
+        665
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Live · Send customer notices\n\nUse Brevo for regional reminders and confirmed recovery. Sandbox validates the request without delivering mail.",
+        "width": 650,
+        "height": 338,
+        "color": 7
+      },
+      "id": "110f556c-1d02-5a85-8193-905a6e89e339",
+      "name": "Live customer notices",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4870,
+        1785
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const schedule = $node['Schedule the maintenance window'].parameter;\n\nfunction resource(settings, names, pattern, service) {\n  const values = names.map(name => String(settings?.[name] ?? '').trim());\n  if (values.every(value => !value)) return null;\n  if (values.some(value => !pattern.test(value))) {\n    throw new Error(`Set all ${service} IDs in Configure maintenance actions, or leave them all blank.`);\n  }\n  return values;\n}\n\nreturn $input.all().flatMap(({ json: occurrence }, index) => {\n  const start = occurrence.target_id === 'maintenance-start';\n  const recovery = occurrence.target_id === 'maintenance-end' && occurrence.health_ok === true;\n  if (occurrence.mode !== 'live' || !occurrence.occurrence_key || (!start && !recovery)) return [];\n  const boundary = start ? schedule.windowStart : schedule.windowEnd;\n  if (Date.parse(occurrence.scheduled_for) !== Date.parse(boundary)) {\n    throw new Error('The occurrence does not match the configured maintenance boundary.');\n  }\n  if (start && Date.now() >= Date.parse(schedule.windowEnd)) {\n    throw new Error('The maintenance window has already ended. The start action was skipped.');\n  }\n  const config = $('Configure maintenance actions').itemMatching(index).json;\n  const cloudflare = resource(config.cloudflare, ['zone_id', 'ruleset_id', 'rule_id'], /^[a-f0-9]{32}$/i, 'Cloudflare');\n  const statuspage = resource(config.statuspage, ['page_id', 'incident_id'], /^[a-z0-9]+$/i, 'Statuspage');\n  return {\n    json: {\n      ...occurrence,\n      cloudflare_ruleset_url: cloudflare\n        ? `https://api.cloudflare.com/client/v4/zones/${cloudflare[0]}/rulesets/${cloudflare[1]}` : null,\n      cloudflare_rule_id: cloudflare?.[2] ?? null,\n      cloudflare_enabled: start,\n      statuspage_url: statuspage\n        ? `https://api.statuspage.io/v1/pages/${statuspage[0]}/incidents/${statuspage[1]}` : null,\n      statuspage_incident_id: statuspage?.[1] ?? null,\n      statuspage_status: start ? 'in_progress' : 'completed',\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "id": "aa6ca627-f834-5918-a6ef-cd87bd9ccd66",
+      "name": "Prepare maintenance transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1655,
+        1025
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5b4380fb-f639-52df-aea6-238f9d852b61",
+              "leftValue": "={{ !!$json.statuspage_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5b4380fb-f639-52df-aea6-238f9d852b61",
+      "name": "Use Statuspage",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1825,
+        1030
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.statuspage_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "148091f2-3b58-519b-a65e-962ea73a7286",
+      "name": "Read scheduled maintenance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        955
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const schedule = $node['Schedule the maintenance window'].parameter;\nreturn $input.all().map(({ json: incident }, index) => {\n  const transition = $('Prepare maintenance transition').itemMatching(index).json;\n  if (incident.id !== transition.statuspage_incident_id\n    || Date.parse(incident.scheduled_for) !== Date.parse(schedule.windowStart)\n    || Date.parse(incident.scheduled_until) !== Date.parse(schedule.windowEnd)) {\n    throw new Error('The Statuspage maintenance ID or window does not match Event Window.');\n  }\n  if (incident.scheduled_auto_in_progress === true || incident.scheduled_auto_completed === true) {\n    throw new Error('Turn off automatic start and completion for this Statuspage maintenance.');\n  }\n  if (transition.statuspage_status === 'in_progress' && Date.now() >= Date.parse(schedule.windowEnd)) {\n    throw new Error('The maintenance window ended before Statuspage could start.');\n  }\n  const allowed = transition.statuspage_status === 'in_progress'\n    ? ['scheduled', 'in_progress'] : ['in_progress', 'verifying', 'completed'];\n  if (!allowed.includes(incident.status)) {\n    throw new Error(`Cannot move Statuspage maintenance from ${incident.status} to ${transition.statuspage_status}.`);\n  }\n  const componentStatus = transition.statuspage_status === 'in_progress'\n    ? 'under_maintenance' : 'operational';\n  const components = incident.components ?? [];\n  const componentStates = Object.fromEntries(components.map(component => [component.id, componentStatus]));\n  const updateComponents = components.some(component => component.status !== componentStatus);\n  return {\n    json: {\n      ...transition,\n      statuspage_components: componentStates,\n      update_statuspage: incident.status !== transition.statuspage_status || updateComponents,\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "id": "2d5fb009-f787-50f4-8efd-2ba4ec9e12dd",
+      "name": "Check Statuspage transition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2175,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7d536438-edbd-561e-b889-c4959ac20a7b",
+              "leftValue": "={{ !!$json.cloudflare_ruleset_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7d536438-edbd-561e-b889-c4959ac20a7b",
+      "name": "Use Cloudflare",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2350,
+        1085
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.cloudflare_ruleset_url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "cloudflareApi",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "152f9896-b751-585d-8109-7cb50fe284f8",
+      "name": "Read Cloudflare ruleset",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2525,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(({ json: response }, index) => {\n  const transition = $('Use Cloudflare').itemMatching(index).json;\n  const rule = response.result?.rules?.find(entry => entry.id === transition.cloudflare_rule_id);\n  if (response.success !== true || !rule || !['block', 'redirect'].includes(rule.action) || !rule.expression) {\n    throw new Error('Select an existing Cloudflare Block or Redirect maintenance rule.');\n  }\n  if (transition.cloudflare_enabled && Date.now() >= Date.parse($node['Schedule the maintenance window'].parameter.windowEnd)) {\n    throw new Error('The maintenance window ended before the Cloudflare rule could be enabled.');\n  }\n  const { id, last_updated, version, ...definition } = rule;\n  return {\n    json: {\n      ...transition,\n      update_cloudflare: (rule.enabled ?? true) !== transition.cloudflare_enabled,\n      cloudflare_patch: { ...definition, enabled: transition.cloudflare_enabled },\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "id": "89640580-3c50-5808-8311-e3c2550ea24f",
+      "name": "Check Cloudflare rule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2695,
+        1010
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8e17f6aa-c445-5dc8-aafc-8bc038f70e85",
+              "leftValue": "={{ $json.update_cloudflare === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8e17f6aa-c445-5dc8-aafc-8bc038f70e85",
+      "name": "Update Cloudflare rule",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2870,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.cloudflare_ruleset_url + '/rules/' + $json.cloudflare_rule_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "cloudflareApi",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.cloudflare_patch) }}"
+      },
+      "id": "8d6659e1-35be-5e61-a6c5-ddda688eca1d",
+      "name": "Set Cloudflare rule state",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3045,
+        850
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(({ json: response }, index) => {\n  const transition = $('Use Cloudflare').itemMatching(index).json;\n  const rule = response.result?.rules?.find(entry => entry.id === transition.cloudflare_rule_id);\n  if (response.success !== true || !rule || rule.enabled !== transition.cloudflare_enabled) {\n    throw new Error('Cloudflare did not confirm the expected rule state.');\n  }\n  return { json: transition, pairedItem: { item: index } };\n});"
+      },
+      "id": "bf6bed1c-d5a9-55f0-b31b-d2d17776c306",
+      "name": "Confirm Cloudflare state",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3220,
+        905
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a9d78999-650f-5f98-b263-33d232fd137b",
+              "leftValue": "={{ $json.update_statuspage === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a9d78999-650f-5f98-b263-33d232fd137b",
+      "name": "Update Statuspage",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3395,
+        1045
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.statuspage_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  incident: {\n    status: $json.statuspage_status,\n    components: $json.statuspage_components,\n    body: $json.statuspage_status === 'completed'\n      ? 'The final health check passed. Maintenance is complete.' : 'Scheduled maintenance is in progress.',\n    deliver_notifications: false\n  }\n}) }}"
+      },
+      "id": "614cd1eb-20b8-53da-ae44-5101645b0c22",
+      "name": "Set maintenance status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3565,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(({ json: incident }, index) => {\n  const transition = $('Update Statuspage').itemMatching(index).json;\n  const componentsMatch = Object.entries(transition.statuspage_components ?? {}).every(([id, status]) =>\n    incident.components?.some(component => component.id === id && component.status === status));\n  if (incident.id !== transition.statuspage_incident_id\n    || incident.status !== transition.statuspage_status || !componentsMatch) {\n    throw new Error('Statuspage did not confirm the expected maintenance and component statuses.');\n  }\n  return { json: transition, pairedItem: { item: index } };\n});"
+      },
+      "id": "eed21045-70c6-54fb-a298-b72f17eda45e",
+      "name": "Confirm Statuspage state",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3740,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const messages = {\n  'ops-warning-2h': 'Maintenance starts in two hours. Review readiness and dependencies.',\n  'ops-warning-15m': 'Maintenance starts in fifteen minutes. Run the final preflight.',\n  'maintenance-start': 'Scheduled maintenance is in progress.',\n  'maintenance-end': 'The final health check passed. Maintenance is complete.',\n};\n\nreturn $input.all().map(({ json: occurrence }, index) => {\n  const config = $('Configure maintenance actions').itemMatching(index).json;\n  const channel = config.slack_channel_id?.trim() ?? '';\n  const message = occurrence.health_ok === false\n    ? `Maintenance health check failed (${occurrence.target_id}). ${occurrence.health_error}`\n    : messages[occurrence.target_id];\n  return {\n    json: {\n      ...occurrence,\n      slack_channel: channel,\n      slack_text: message ? `[${config.service_name}] ${message} (${occurrence.scheduled_for})` : null,\n    },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "id": "96c74d38-ed7a-5466-999c-37277711f060",
+      "name": "Prepare Slack message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4070,
+        1195
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1373c2bd-a7d4-501a-91a3-d8a3851fed22",
+              "leftValue": "={{ $json.mode === 'live' && !!$json.slack_channel && !!$json.slack_text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1373c2bd-a7d4-501a-91a3-d8a3851fed22",
+      "name": "Use Slack",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4245,
+        1020
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.slack_channel }}",
+          "mode": "id"
+        },
+        "messageType": "text",
+        "text": "={{ $json.slack_text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "mrkdwn": false,
+          "unfurl_links": false,
+          "unfurl_media": false
+        }
+      },
+      "id": "b754e66b-72fa-5c2d-93e0-021e50d8bb89",
+      "name": "Post to operations Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.6,
+      "position": [
+        4420,
+        935
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(({ json: response }, index) => {\n  const occurrence = $('Prepare Slack message').itemMatching(index).json;\n  const error = response.ok === true ? null : (typeof response.error === 'string' ? response.error : 'Request failed.');\n  if (error && typeof occurrence.health_ok !== 'boolean') {\n    throw new Error(`Slack message failed for ${occurrence.target_id}. ${error}`);\n  }\n  return {\n    json: { ...occurrence, slack_error: error },\n    pairedItem: { item: index },\n  };\n});"
+      },
+      "id": "016cf4ff-997d-52de-8203-0d82bfa578d1",
+      "name": "Record Slack result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4595,
+        935
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "renameOutput": true,
+              "outputKey": "Failed health check",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9cd23b48-eaac-5881-9af5-2ffa1255ebef",
+                    "leftValue": "={{ $json.health_ok === false }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Recovery notice",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "539cddfd-70ab-586e-9bb0-bbc01179c745",
+                    "leftValue": "={{ $json.mode === 'live' && $json.target_id === 'maintenance-end' && $json.health_ok === true }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "79cb318d-eafb-5598-a127-a38483edf43c",
+      "name": "Route operations outcome",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        4770,
+        1030
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Live · Notify operations\n\nSlack sends warnings, health failures, and lifecycle updates. A failed health check stops the workflow before the recovery notice.",
+        "width": 1195,
+        "height": 720,
+        "color": 7
+      },
+      "id": "e23f574a-41d3-5d90-8005-e5527c2eaa76",
+      "name": "Operations messages",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3960,
+        819
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Live · Apply the Cloudflare rule\n\nRead the current rule and update it only when needed. Confirm the rule state before moving on to Statuspage.",
+        "width": 1025,
+        "height": 494,
+        "color": 7
+      },
+      "id": "18d2c312-5df8-5caa-b9d5-12705a44e53d",
+      "name": "Cloudflare and Statuspage",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2327,
+        745
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Live · Check the scheduled maintenance\n\nMatch the Statuspage maintenance to Event Window and verify that n8n controls its start and completion.",
+        "color": 7,
+        "width": 763,
+        "height": 359
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1550,
+        875
+      ],
+      "name": "Check the scheduled maintenance",
+      "id": "e5e1a2b0-82e3-5254-9baf-278d08b17385"
+    },
+    {
+      "parameters": {
+        "content": "## Review · Unmatched target\n\nUnknown or incomplete occurrences stop here.",
+        "width": 350,
+        "height": 300,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1015,
+        1625
+      ],
+      "name": "Review · Unmatched target",
+      "id": "056583e0-d028-5dc8-a5e5-2de38a123465"
+    },
+    {
+      "parameters": {
+        "content": "## Live · Update Statuspage\n\nSet the maintenance status only when a change is needed. This path continues to Slack.",
+        "width": 575,
+        "height": 367,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3365,
+        839
+      ],
+      "name": "Live · Update Statuspage",
+      "id": "4d6a54e3-2e17-5206-856d-eaf89ebbf37b"
+    }
+  ],
+  "connections": {
+    "Schedule the maintenance window": {
+      "main": [
+        [
+          {
+            "node": "Configure maintenance actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run manual preview": {
+      "main": [
+        [
+          {
+            "node": "Load sample occurrences",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load sample occurrences": {
+      "main": [
+        [
+          {
+            "node": "Configure maintenance actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare occurrence context": {
+      "main": [
+        [
+          {
+            "node": "Route by target ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by target ID": {
+      "main": [
+        [
+          {
+            "node": "Preview D-7 customer notice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preview D-1 customer notice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preview operations readiness",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preview final preflight",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preview start actions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preview service health check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preview recovery decision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check service health",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare maintenance transition",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Slack message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Brevo notice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Review unknown or invalid occurrences",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure maintenance actions": {
+      "main": [
+        [
+          {
+            "node": "Prepare occurrence context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check service health": {
+      "main": [
+        [
+          {
+            "node": "Evaluate health check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate health check": {
+      "main": [
+        [
+          {
+            "node": "Route health result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route health result": {
+      "main": [
+        [
+          {
+            "node": "Prepare Slack message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare maintenance transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Brevo notice": {
+      "main": [
+        [
+          {
+            "node": "Send notice with Brevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send notice with Brevo": {
+      "main": [
+        [
+          {
+            "node": "Record Brevo result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare maintenance transition": {
+      "main": [
+        [
+          {
+            "node": "Use Statuspage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Statuspage": {
+      "main": [
+        [
+          {
+            "node": "Read scheduled maintenance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Use Cloudflare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read scheduled maintenance": {
+      "main": [
+        [
+          {
+            "node": "Check Statuspage transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Statuspage transition": {
+      "main": [
+        [
+          {
+            "node": "Use Cloudflare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Cloudflare": {
+      "main": [
+        [
+          {
+            "node": "Read Cloudflare ruleset",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Statuspage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Cloudflare ruleset": {
+      "main": [
+        [
+          {
+            "node": "Check Cloudflare rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Cloudflare rule": {
+      "main": [
+        [
+          {
+            "node": "Update Cloudflare rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Cloudflare rule": {
+      "main": [
+        [
+          {
+            "node": "Set Cloudflare rule state",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Statuspage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Cloudflare rule state": {
+      "main": [
+        [
+          {
+            "node": "Confirm Cloudflare state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Cloudflare state": {
+      "main": [
+        [
+          {
+            "node": "Update Statuspage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Statuspage": {
+      "main": [
+        [
+          {
+            "node": "Set maintenance status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Slack message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set maintenance status": {
+      "main": [
+        [
+          {
+            "node": "Confirm Statuspage state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Statuspage state": {
+      "main": [
+        [
+          {
+            "node": "Prepare Slack message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Slack message": {
+      "main": [
+        [
+          {
+            "node": "Use Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Slack": {
+      "main": [
+        [
+          {
+            "node": "Post to operations Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route operations outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to operations Slack": {
+      "main": [
+        [
+          {
+            "node": "Record Slack result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Slack result": {
+      "main": [
+        [
+          {
+            "node": "Route operations outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route operations outcome": {
+      "main": [
+        [
+          {
+            "node": "Report failed health check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Brevo notice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  }
+}

@@ -13,8 +13,9 @@ package by the package `files` allowlist.
   — [published n8n template](https://n8n.io/workflows/17507-send-localized-9am-rss-coffee-newsletters-with-rrulenet-and-brevo/),
   compatible with node 0.1.4 and later.
 
-The maintenance-window workflow is not included yet. Its Event Window node
-mode must be released before workflow implementation resumes.
+- [Global SaaS maintenance window](./maintenance-window/README.md), with
+  Event Window in node 0.2.0 and later, regional Brevo notices, HTTP health checks,
+  and optional Slack, Cloudflare, and Statuspage integrations.
 
 Never commit credentials, real recipients, private feed URLs, production
 webhook URLs, or n8n instance identifiers to these exports.
